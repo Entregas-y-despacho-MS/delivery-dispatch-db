@@ -1,0 +1,1 @@
+-- Sin datos iniciales: la flota se administra desde el panel del coordinador.

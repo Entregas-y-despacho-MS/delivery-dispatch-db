@@ -1,0 +1,1 @@
+-- Sin datos iniciales: las rutas se generan durante la operación normal del sistema.

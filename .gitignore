@@ -1,0 +1,5 @@
+node_modules/
+db-output.sql
+.env
+backups/*.sql
+.claude/

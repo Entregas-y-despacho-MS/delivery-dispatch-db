@@ -1,0 +1,1 @@
+-- Sin datos iniciales: se generan durante la operación normal del sistema.

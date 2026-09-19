@@ -1,0 +1,2 @@
+-- Sin datos iniciales: los usuarios internos se crean por registro del coordinador,
+-- no hay usuarios de sistema hardcodeados en el schema.

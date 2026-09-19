@@ -1,0 +1,1 @@
+-- Sin datos iniciales: las zonas se definen según la cobertura real del negocio.

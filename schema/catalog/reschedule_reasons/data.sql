@@ -1,0 +1,1 @@
+-- Sin datos iniciales: administrado por el coordinador.
