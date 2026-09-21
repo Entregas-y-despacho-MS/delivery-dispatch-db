@@ -5,6 +5,7 @@ CREATE TABLE users (
     username                   VARCHAR(50) NOT NULL,               -- usuario de acceso
     email                      VARCHAR(150),                       -- correo de contacto
     password_hash              VARCHAR(255) NOT NULL,              -- contraseña con hash seguro
+    password_changed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- última vez que se cambió la contraseña, para la caducidad periódica (RF-A25)
     failed_attempts            SMALLINT NOT NULL DEFAULT 0,        -- intentos fallidos consecutivos
     locked_until               TIMESTAMPTZ,                        -- bloqueo temporal hasta esta fecha
     refresh_token_hash         VARCHAR(255),                       -- hash del refresh token vigente, persistencia segura de la app móvil

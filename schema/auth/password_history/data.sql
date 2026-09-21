@@ -1,0 +1,1 @@
+-- Sin datos iniciales — se llena a medida que los usuarios cambian su contraseña.
