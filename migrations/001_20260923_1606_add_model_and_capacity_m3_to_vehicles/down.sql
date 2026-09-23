@@ -1,0 +1,2 @@
+ALTER TABLE vehicles DROP COLUMN IF EXISTS capacity_m3;
+ALTER TABLE vehicles DROP COLUMN IF EXISTS model;
