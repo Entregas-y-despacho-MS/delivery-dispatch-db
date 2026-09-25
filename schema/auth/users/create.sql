@@ -8,6 +8,7 @@ CREATE TABLE users (
     password_changed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- última vez que se cambió la contraseña, para la caducidad periódica (RF-A25)
     failed_attempts            SMALLINT NOT NULL DEFAULT 0,        -- intentos fallidos consecutivos
     locked_until               TIMESTAMPTZ,                        -- bloqueo temporal hasta esta fecha
+    last_login_at              TIMESTAMPTZ,                        -- último inicio de sesión exitoso; NULL si nunca ingresó
     refresh_token_hash         VARCHAR(255),                       -- hash del refresh token vigente, persistencia segura de la app móvil
     requires_pwd_change        BOOLEAN NOT NULL DEFAULT TRUE,      -- fuerza cambio de contraseña en el próximo login
     password_reset_token       VARCHAR(255),                       -- token de recuperación de contraseña; NULL si no hay ninguno pendiente
