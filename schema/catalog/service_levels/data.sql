@@ -1,3 +1,3 @@
-INSERT INTO service_levels (name, target_time_min) VALUES
-    ('Standard', 240),
-    ('Express', 90);
+INSERT INTO service_levels (name, description, target_time_min, priority_level) VALUES
+    ('Standard', 'Regular delivery', 240, 2),
+    ('Express',  'Priority delivery for urgent orders', 90, 1);
