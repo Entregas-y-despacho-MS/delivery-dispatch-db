@@ -1,4 +1,4 @@
-INSERT INTO incident_reasons (name) VALUES
-    ('Customer absent'),
-    ('Incorrect address'),
-    ('Damaged product');
+INSERT INTO incident_reasons (code, name, requires_evidence) VALUES
+    ('INC-CUST-ABSENT',  'Customer absent',   false),
+    ('INC-ADDR-INVALID', 'Incorrect address', false),
+    ('INC-PROD-DAMAGED', 'Damaged product',   true);
