@@ -1,5 +1,6 @@
 CREATE TABLE reschedule_reasons (
     reschedule_reason_id  SERIAL,
+    code                  VARCHAR(30)    NOT NULL,                        -- unique reference code (ej. RES-CLI-EXP)
     name                  VARCHAR(150)   NOT NULL,                        -- motivo de reprogramación o reasignación de despachos
     description           VARCHAR(255),                                   -- detalle opcional del motivo
     category              VARCHAR(20)    NOT NULL,                        -- origen/responsabilidad: client | operations | force_majeure
@@ -12,3 +13,4 @@ CREATE TABLE reschedule_reasons (
 );
 
 CREATE UNIQUE INDEX uq_reschedule_reasons_name ON reschedule_reasons(name) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_reschedule_reasons_code ON reschedule_reasons(code) WHERE deleted_at IS NULL;
