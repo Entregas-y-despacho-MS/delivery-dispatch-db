@@ -26,3 +26,10 @@ Historial de mantenimientos e incidentes mecánicos registrados sobre un vehícu
 ## Business rules
 
 - El supervisor de flota registra y da seguimiento a estos mantenimientos (RF-A17). Es un registro histórico, no se borra.
+- Si `vehicle_incident_type_id` referencia un tipo con `disables_vehicle = true`, registrar la fila también actualiza de inmediato `vehicles.vehicle_status_id` a `maintenance` (RF-A34, Escenario 2) — ambas escrituras en una sola transacción.
+
+## Estado del backend (2026-09-29)
+
+Solo existe el alta (`POST /vehicle-maintenances`), construida como parte mínima de RF-A34 para poder
+disparar el cambio de estado del Escenario 2 — no como el CRUD completo de RF-A17 (listar, editar,
+programar, completar), que sigue sin construirse.
