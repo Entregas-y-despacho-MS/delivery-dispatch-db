@@ -1,6 +1,6 @@
 {
   "name": "delivery-dispatch-db",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "scripts": {
     "build": "tsx scripts/build.ts",
     "migrate": "tsx scripts/migrate.ts",
