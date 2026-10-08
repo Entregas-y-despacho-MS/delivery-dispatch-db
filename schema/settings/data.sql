@@ -10,4 +10,5 @@ INSERT INTO settings (setting_key, setting_value, description) VALUES
     ('max_failed_login_attempts',    '5',  'Failed login attempts before an account is locked'),
     ('account_lockout_minutes',      '15', 'Minutes an account stays locked after too many failed login attempts'),
     ('password_reset_expiry_minutes','30', 'Minutes a password reset token stays valid before expiring'),
-    ('session_inactivity_minutes',   '30', 'Minutes of inactivity before auto-closing a session (does not apply to the driver mobile app in route)');
+    ('session_inactivity_minutes',   '30', 'Minutes of inactivity before auto-closing a session (does not apply to the driver mobile app in route)'),
+    ('order_reservation_ttl_minutes','15', 'Minutes a soft order reservation lasts without coordinator activity');
