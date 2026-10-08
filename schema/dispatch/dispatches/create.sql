@@ -26,6 +26,8 @@ CREATE TABLE dispatches (
     last_latitude              NUMERIC(9,6)   ,                          -- última latitud conocida
     last_longitude             NUMERIC(9,6)   ,                          -- última longitud conocida
     last_location_at           TIMESTAMPTZ    ,                          -- momento de la última actualización de ubicación
+    tracking_code              VARCHAR(20)    ,                          -- código de traslado DSP-AAAA-NNNNN (único e inmutable; lo genera next_tracking_code())
+    evidence_policy            VARCHAR(30)    NOT NULL DEFAULT 'hand_delivery_standard', -- política de evidencia exigida por Almacén
     confirmed_at               TIMESTAMPTZ    ,                          -- momento en que se confirmó la entrega, el recojo o la recepción en destino
     created_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
@@ -35,7 +37,9 @@ CREATE TABLE dispatches (
     FOREIGN KEY (delivery_zone_id)   REFERENCES delivery_zones(delivery_zone_id),
     FOREIGN KEY (service_level_id)   REFERENCES service_levels(service_level_id),
     FOREIGN KEY (route_batch_id)     REFERENCES route_batches(route_batch_id)         ON DELETE SET NULL,
-    CONSTRAINT chk_dispatches_priority CHECK (priority IN ('urgent', 'normal'))
+    CONSTRAINT chk_dispatches_priority CHECK (priority IN ('urgent', 'normal')),
+    CONSTRAINT uq_dispatches_tracking_code UNIQUE (tracking_code),
+    CONSTRAINT chk_dispatches_evidence_policy CHECK (evidence_policy IN ('hand_delivery_standard', 'contactless_delivery', 'high_value_control'))
 );
 
 CREATE INDEX idx_dispatches_status_id      ON dispatches(dispatch_status_id);
@@ -48,3 +52,40 @@ CREATE INDEX idx_dispatches_source_order_ref ON dispatches(source_order_ref);
 -- Evita que dos despachos de la misma ruta queden con el mismo orden de visita
 CREATE UNIQUE INDEX uq_dispatches_route_batch_sequence ON dispatches(route_batch_id, sequence_order)
     WHERE route_batch_id IS NOT NULL AND sequence_order IS NOT NULL;
+
+-- Punto de destino indexado con GiST (tipos geométricos nativos; la imagen postgres no incluye PostGIS)
+CREATE INDEX idx_dispatches_delivery_point ON dispatches
+    USING GIST (point(delivery_longitude::float8, delivery_latitude::float8))
+    WHERE delivery_latitude IS NOT NULL AND delivery_longitude IS NOT NULL;
+
+-- Contador anual del código de traslado: el UPSERT bloquea la fila, seguro ante concurrencia
+CREATE TABLE tracking_code_counters (
+    code_year   SMALLINT   NOT NULL,
+    last_value  INT        NOT NULL DEFAULT 0,
+    PRIMARY KEY (code_year)
+);
+
+CREATE FUNCTION next_tracking_code() RETURNS VARCHAR AS $$
+DECLARE
+    y  SMALLINT := EXTRACT(YEAR FROM NOW())::SMALLINT;
+    n  INT;
+BEGIN
+    INSERT INTO tracking_code_counters (code_year, last_value) VALUES (y, 1)
+    ON CONFLICT (code_year) DO UPDATE SET last_value = tracking_code_counters.last_value + 1
+    RETURNING last_value INTO n;
+    RETURN 'DSP-' || y || '-' || LPAD(n::TEXT, 5, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION prevent_tracking_code_change() RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.tracking_code IS NOT NULL AND NEW.tracking_code IS DISTINCT FROM OLD.tracking_code THEN
+        RAISE EXCEPTION 'dispatches.tracking_code is immutable once assigned';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_dispatches_tracking_code_immutable
+    BEFORE UPDATE OF tracking_code ON dispatches
+    FOR EACH ROW EXECUTE FUNCTION prevent_tracking_code_change();

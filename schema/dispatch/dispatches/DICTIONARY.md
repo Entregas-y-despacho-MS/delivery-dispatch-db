@@ -33,6 +33,8 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | last_latitude | NUMERIC(9,6) | YES | — | Última latitud conocida del despacho en curso, transmitida periódicamente por la app móvil del repartidor (RF-U11) y consultada por el Cliente Final (RF-U15) |
 | last_longitude | NUMERIC(9,6) | YES | — | Última longitud conocida (mismo RF-U11/RF-U15 que arriba) |
 | last_location_at | TIMESTAMPTZ | YES | — | Momento de la última actualización de ubicación |
+| tracking_code | VARCHAR(20) | YES | — | Código de traslado `DSP-AAAA-NNNNN` (año y secuencia de 5 dígitos con reinicio anual). Único e inmutable; se genera con `next_tracking_code()` |
+| evidence_policy | VARCHAR(30) | NO | 'hand_delivery_standard' | Política de evidencia exigida: `hand_delivery_standard`, `contactless_delivery` o `high_value_control` |
 | confirmed_at | TIMESTAMPTZ | YES | — | Momento en que se confirmó la entrega, el recojo o la recepción en destino |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
@@ -62,3 +64,6 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - `tracking_token` es único; se usa en vez del `dispatch_id` para no exponer un identificador secuencial interno al Cliente Final.
 - `route_batch_id` usa `ON DELETE SET NULL`: si la ruta se elimina, el despacho no se pierde, solo queda sin ruta asignada.
 - `uq_dispatches_route_batch_sequence` (único parcial sobre `route_batch_id, sequence_order`) impide que dos despachos de la misma ruta queden con el mismo orden de visita.
+- `tracking_code`: `next_tracking_code()` incrementa `tracking_code_counters` (una fila por año) con un UPSERT que bloquea la fila, por lo que es seguro ante concurrencia y reinicia cada año. El trigger `trg_dispatches_tracking_code_immutable` impide cambiarlo una vez asignado. Es nullable para no romper filas previas.
+- `idx_dispatches_delivery_point`: índice GiST parcial sobre `point(longitud, latitud)` para consultas espaciales; usa tipos nativos porque la imagen `postgres:18-alpine` no trae PostGIS.
+- Los bultos del despacho (peso y medidas reales) viven en `dispatch_packages`.
