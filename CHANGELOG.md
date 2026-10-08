@@ -9,6 +9,7 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Agregado
 - Migración 009 — estados ampliados, `dispatch_packages`, `tracking_code` (`DSP-AAAA-NNNNN`), `evidence_policy` e índices GiST (ST-49.2).
+- Migración 010 — `dispatch_reservations` (reserva suave de pedidos) y clave `order_reservation_ttl_minutes` en `settings` (ST-48.2).
 
 ## [0.1.0] - 2026-10-06
 Primer hito etiquetado — fin del Sprint 1. El schema sigue en desarrollo activo; se esperan
