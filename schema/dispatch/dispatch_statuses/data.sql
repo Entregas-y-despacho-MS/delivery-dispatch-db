@@ -3,4 +3,14 @@ INSERT INTO dispatch_statuses (name) VALUES
     ('in_transit'),
     ('delivered'),
     ('not_delivered'),
-    ('returned');
+    ('returned'),
+    ('address_review'),
+    ('in_planning'),
+    ('scheduled'),
+    ('assigned'),
+    ('out_for_delivery'),
+    ('incident'),
+    ('rescheduled'),
+    ('pickup_scheduled'),
+    ('picked_up_in_transit'),
+    ('returned_to_warehouse');

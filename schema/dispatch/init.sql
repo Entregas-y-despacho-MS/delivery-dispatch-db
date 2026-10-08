@@ -7,6 +7,7 @@
 \i schema/dispatch/dispatch_statuses/init.sql
 \i schema/dispatch/route_batches/init.sql
 \i schema/dispatch/dispatches/init.sql
+\i schema/dispatch/dispatch_packages/init.sql
 \i schema/dispatch/delivery_evidences/init.sql
 \i schema/dispatch/dispatch_incidents/init.sql
 \i schema/dispatch/dispatch_ratings/init.sql
