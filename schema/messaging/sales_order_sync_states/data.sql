@@ -1,0 +1,1 @@
+-- State is created when the first producer message or recovery request arrives.

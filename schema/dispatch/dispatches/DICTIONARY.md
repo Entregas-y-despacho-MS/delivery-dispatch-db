@@ -16,6 +16,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | source_order_ref | VARCHAR(100) | NO | — | Referencia del pedido u orden en el sistema que originó el despacho (Inventarios y Almacén o Compras y Proveedores) |
 | priority | VARCHAR(10) | NO | 'normal' | `urgent` o `normal` |
 | delivery_address | TEXT | NO | — | Dirección de destino: domicilio del cliente, o planta del proveedor según el tipo de despacho |
+| delivery_reference | TEXT | YES | — | Referencias adicionales de la dirección enviadas por Marketplace |
 | delivery_latitude | NUMERIC(9,6) | YES | — | Latitud del destino. Llega ya resuelta del sistema origen (el usuario final marca la ubicación en un mapa al momento de su pedido) junto con `delivery_address` — Despachos no geocodifica nada, solo la recibe y la usa para el motor de ruteo (OSRM) |
 | delivery_longitude | NUMERIC(9,6) | YES | — | Longitud del destino (mismo motivo que arriba) |
 | contact_name | VARCHAR(150) | YES | — | Persona de contacto en el destino (cliente final, o encargado en planta del proveedor) |
@@ -28,6 +29,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | scheduled_window_start | TIMESTAMPTZ | YES | — | Inicio de la ventana horaria prometida; el cliente puede pedir su cambio dentro de la ventana permitida (RF-U21) |
 | scheduled_window_end | TIMESTAMPTZ | YES | — | Fin de la ventana horaria prometida (mismo RF-U21 que arriba) |
 | package_ready_at | TIMESTAMPTZ | YES | — | Momento en que el origen confirmó que el paquete/carga está físicamente listo para ser recogido — llega como un segundo aviso, después de que el despacho ya fue creado con el preaviso |
+| shipment_ready | BOOLEAN | NO | TRUE | Indica si los bultos definidos por Almacén siguen listos para planificar; no equivale a estar físicamente empacados |
 | tracking_token | VARCHAR(100) | YES | — | Token del enlace de seguimiento que usa el Cliente Final para ver su pedido sin necesitar una cuenta (RF-U14) |
 | tracking_token_expires_at | TIMESTAMPTZ | YES | — | Vencimiento del token de seguimiento |
 | last_latitude | NUMERIC(9,6) | YES | — | Última latitud conocida del despacho en curso, transmitida periódicamente por la app móvil del repartidor (RF-U11) y consultada por el Cliente Final (RF-U15) |
@@ -79,4 +81,6 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - `uq_dispatches_route_batch_sequence` (único parcial sobre `route_batch_id, sequence_order`) impide que dos despachos de la misma ruta queden con el mismo orden de visita.
 - `tracking_code`: `next_tracking_code()` incrementa `tracking_code_counters` (una fila por año) con un UPSERT que bloquea la fila, por lo que es seguro ante concurrencia y reinicia cada año. El trigger `trg_dispatches_tracking_code_immutable` (función `prevent_tracking_code_change()`) impide cambiarlo una vez asignado. Es nullable para no romper filas previas.
 - `idx_dispatches_delivery_point`: índice GiST parcial sobre `point(longitud, latitud)` para consultas espaciales; usa tipos nativos porque la imagen `postgres:18-alpine` no trae PostGIS.
+- `uq_dispatches_delivery_source_order_ref` impide dos entregas con la misma referencia de pedido, incluso si se cancela una; no afecta los otros tipos de despacho.
+- `delivery_reference` y `shipment_ready` fueron añadidos en la migración 014. La primera completa el mapeo acordado en ST-49.3 que faltó en la 013.
 - Los bultos del despacho (peso y medidas reales) viven en `dispatch_packages`.
