@@ -15,6 +15,7 @@
 \i schema/auth/init.sql
 \i schema/fleet/init.sql
 \i schema/catalog/init.sql
-\i schema/messaging/init.sql
 \i schema/dispatch/init.sql
+-- messaging/pending_* references dispatches after consolidation
+\i schema/messaging/init.sql
 \i schema/audit/init.sql
