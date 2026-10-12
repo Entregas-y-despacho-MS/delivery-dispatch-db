@@ -191,3 +191,125 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_dispatches_origin_warehouse_id ON dispatches(origin_warehouse_id);
+
+-- 6. dispatch_events: autor, motivo y metadatos; inmutable (append-only por trigger).
+--    `actor_type` queda nullable: los eventos previos no registraron quién los generó.
+ALTER TABLE dispatch_events
+    ADD COLUMN IF NOT EXISTS actor_user_id  INT,
+    ADD COLUMN IF NOT EXISTS actor_type     VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS reason         TEXT,
+    ADD COLUMN IF NOT EXISTS metadata       JSONB;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatch_events_actor_type') THEN
+        ALTER TABLE dispatch_events ADD CONSTRAINT chk_dispatch_events_actor_type
+            CHECK (actor_type IN ('user', 'system', 'customer'));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatch_events_actor_user_id_fkey') THEN
+        ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_actor_user_id_fkey
+            FOREIGN KEY (actor_user_id) REFERENCES users(user_id) ON DELETE RESTRICT;
+    END IF;
+    -- dispatch_id: de CASCADE a RESTRICT (un despacho con historial no se borra en silencio).
+    IF EXISTS (SELECT 1 FROM pg_constraint
+               WHERE conname = 'dispatch_events_dispatch_id_fkey' AND confdeltype <> 'r') THEN
+        ALTER TABLE dispatch_events DROP CONSTRAINT dispatch_events_dispatch_id_fkey;
+        ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_dispatch_id_fkey
+            FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE RESTRICT;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_dispatch_events_actor_user_id ON dispatch_events(actor_user_id);
+
+CREATE OR REPLACE FUNCTION fn_dispatch_events_prevent_update() RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'dispatch_events is append-only: UPDATE is not allowed';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION fn_dispatch_events_prevent_delete() RETURNS TRIGGER AS $$
+BEGIN
+    IF COALESCE(current_setting('app.allow_event_purge', true), '') = 'on' THEN
+        RETURN OLD;
+    END IF;
+    RAISE EXCEPTION 'dispatch_events is append-only: DELETE is not allowed';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_dispatch_events_prevent_update ON dispatch_events;
+CREATE TRIGGER trg_dispatch_events_prevent_update
+    BEFORE UPDATE ON dispatch_events
+    FOR EACH ROW EXECUTE FUNCTION fn_dispatch_events_prevent_update();
+
+DROP TRIGGER IF EXISTS trg_dispatch_events_prevent_delete ON dispatch_events;
+CREATE TRIGGER trg_dispatch_events_prevent_delete
+    BEFORE DELETE ON dispatch_events
+    FOR EACH ROW EXECUTE FUNCTION fn_dispatch_events_prevent_delete();
+
+-- 7. dispatch_reschedules: quién reprogramó. Sin `rescheduled_by` → `system`; con usuario →
+--    `coordinator` (los usuarios que reprograman son coordinadores o supervisores).
+ALTER TABLE dispatch_reschedules ADD COLUMN IF NOT EXISTS rescheduled_by_type VARCHAR(20);
+
+UPDATE dispatch_reschedules
+SET rescheduled_by_type = CASE WHEN rescheduled_by IS NULL THEN 'system' ELSE 'coordinator' END
+WHERE rescheduled_by_type IS NULL;
+
+ALTER TABLE dispatch_reschedules ALTER COLUMN rescheduled_by_type SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatch_reschedules_rescheduled_by_type') THEN
+        ALTER TABLE dispatch_reschedules ADD CONSTRAINT chk_dispatch_reschedules_rescheduled_by_type
+            CHECK (rescheduled_by_type IN ('customer', 'coordinator', 'system'));
+    END IF;
+END $$;
+
+-- Motivo para la reprogramación por autoservicio del cliente (`reschedule_reason_id` es NOT NULL
+-- y el catálogo no traía datos).
+INSERT INTO reschedule_reasons (code, name, description, category)
+VALUES ('RES-CLI-SELF', 'Customer self-service reschedule',
+        'The customer rescheduled the delivery from the tracking link', 'client')
+ON CONFLICT DO NOTHING;
+
+-- 8. incident_reasons: qué motivos consumen un intento de entrega (D-48).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'incident_reasons' AND column_name = 'counts_as_attempt') THEN
+        ALTER TABLE incident_reasons ADD COLUMN counts_as_attempt BOOLEAN NOT NULL DEFAULT FALSE;
+        UPDATE incident_reasons SET counts_as_attempt = TRUE
+        WHERE code IN ('INC-CUST-ABSENT', 'INC-ADDR-INVALID');
+    END IF;
+END $$;
+
+-- Falla de la empresa o del vehículo: no consume intento y no exige foto (tras una avería el
+-- conductor puede no poder tomarla).
+INSERT INTO incident_reasons (code, name, requires_evidence, counts_as_attempt)
+VALUES ('INC-COMP-FAILURE', 'Company or vehicle failure', FALSE, FALSE)
+ON CONFLICT DO NOTHING;
+
+-- 9. vehicles: tamaño máximo de bulto que admite el vehículo (NULL = sin límite declarado).
+ALTER TABLE vehicles
+    ADD COLUMN IF NOT EXISTS max_package_length_cm  NUMERIC(8,2),
+    ADD COLUMN IF NOT EXISTS max_package_width_cm   NUMERIC(8,2),
+    ADD COLUMN IF NOT EXISTS max_package_height_cm  NUMERIC(8,2);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_length_cm') THEN
+        ALTER TABLE vehicles ADD CONSTRAINT chk_vehicles_max_package_length_cm
+            CHECK (max_package_length_cm IS NULL OR max_package_length_cm > 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_width_cm') THEN
+        ALTER TABLE vehicles ADD CONSTRAINT chk_vehicles_max_package_width_cm
+            CHECK (max_package_width_cm IS NULL OR max_package_width_cm > 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_height_cm') THEN
+        ALTER TABLE vehicles ADD CONSTRAINT chk_vehicles_max_package_height_cm
+            CHECK (max_package_height_cm IS NULL OR max_package_height_cm > 0);
+    END IF;
+END $$;
+
+-- 10. service_levels: Express queda desactivado (no se ofrece en este alcance).
+UPDATE service_levels SET active = FALSE
+WHERE name = 'Express' AND deleted_at IS NULL AND active = TRUE;

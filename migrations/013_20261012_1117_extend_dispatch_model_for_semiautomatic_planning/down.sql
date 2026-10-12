@@ -1,5 +1,56 @@
 -- Orden inverso a up.sql.
 
+-- 10. service_levels: up.sql desactivó Express; no se reactiva (no se sabe si alguien lo cambió
+--     después). Ver README.
+
+-- 9. vehicles
+ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS chk_vehicles_max_package_height_cm;
+ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS chk_vehicles_max_package_width_cm;
+ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS chk_vehicles_max_package_length_cm;
+ALTER TABLE vehicles
+    DROP COLUMN IF EXISTS max_package_height_cm,
+    DROP COLUMN IF EXISTS max_package_width_cm,
+    DROP COLUMN IF EXISTS max_package_length_cm;
+
+-- 8. incident_reasons (el motivo sembrado se quita solo si ninguna incidencia lo usa)
+DELETE FROM incident_reasons
+WHERE code = 'INC-COMP-FAILURE'
+  AND NOT EXISTS (SELECT 1 FROM dispatch_incidents i WHERE i.incident_reason_id = incident_reasons.incident_reason_id);
+ALTER TABLE incident_reasons DROP COLUMN IF EXISTS counts_as_attempt;
+
+-- 7. dispatch_reschedules (el motivo sembrado se quita solo si ninguna reprogramación lo usa)
+ALTER TABLE dispatch_reschedules DROP CONSTRAINT IF EXISTS chk_dispatch_reschedules_rescheduled_by_type;
+ALTER TABLE dispatch_reschedules DROP COLUMN IF EXISTS rescheduled_by_type;
+DELETE FROM reschedule_reasons
+WHERE code = 'RES-CLI-SELF'
+  AND NOT EXISTS (SELECT 1 FROM dispatch_reschedules r WHERE r.reschedule_reason_id = reschedule_reasons.reschedule_reason_id);
+
+-- 6. dispatch_events
+DROP TRIGGER IF EXISTS trg_dispatch_events_prevent_delete ON dispatch_events;
+DROP TRIGGER IF EXISTS trg_dispatch_events_prevent_update ON dispatch_events;
+DROP FUNCTION IF EXISTS fn_dispatch_events_prevent_delete();
+DROP FUNCTION IF EXISTS fn_dispatch_events_prevent_update();
+DROP INDEX IF EXISTS idx_dispatch_events_actor_user_id;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint
+               WHERE conname = 'dispatch_events_dispatch_id_fkey' AND confdeltype = 'r') THEN
+        ALTER TABLE dispatch_events DROP CONSTRAINT dispatch_events_dispatch_id_fkey;
+        ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_dispatch_id_fkey
+            FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+ALTER TABLE dispatch_events DROP CONSTRAINT IF EXISTS dispatch_events_actor_user_id_fkey;
+ALTER TABLE dispatch_events DROP CONSTRAINT IF EXISTS chk_dispatch_events_actor_type;
+ALTER TABLE dispatch_events
+    DROP COLUMN IF EXISTS metadata,
+    DROP COLUMN IF EXISTS reason,
+    DROP COLUMN IF EXISTS actor_type,
+    DROP COLUMN IF EXISTS actor_user_id;
+
+
 -- 5. dispatches
 DROP INDEX IF EXISTS idx_dispatches_origin_warehouse_id;
 ALTER TABLE dispatches DROP CONSTRAINT IF EXISTS dispatches_origin_warehouse_id_fkey;
