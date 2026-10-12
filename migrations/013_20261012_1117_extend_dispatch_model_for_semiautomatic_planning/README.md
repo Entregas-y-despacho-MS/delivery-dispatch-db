@@ -23,7 +23,7 @@ No se edita la 009. No siembra nada en `settings`: la 011 ya contiene todas las 
 
 ## Efecto sobre las filas existentes
 
-- **`route_batches.status`**: filas con `shift_date` anterior a hoy → `closed`; el resto → `confirmed`.
+- **`route_batches.status`**: filas con `shift_date` anterior a hoy (fecha en `America/La_Paz`, no la del huso de la sesión) → `closed`; el resto → `confirmed`.
   Nunca `provisional`. `closed_at` queda `NULL` en las cerradas por backfill (el momento real no se
   conoce). Después del backfill la columna pasa a `NOT NULL` **sin default**: quien inserte un lote
   debe indicar `status`.
@@ -43,8 +43,9 @@ No se edita la 009. No siembra nada en `settings`: la 011 ya contiene todas las 
 únicos y documentar el tratamiento, pero no lo define. Tratamiento adoptado:
 
 1. Un grupo es el conjunto de lotes no cancelados con el mismo `vehicle_id` (o `driver_id`) y la
-   misma `shift_date`.
-2. Se conserva la asignación del lote de **mayor `route_batch_id`**; en los demás la columna
+   misma `shift_date`. Incluye lotes históricos `closed`: el índice único los abarca (el plan solo
+   excluye `cancelled`), así que sus duplicados también deben resolverse para poder crearlo.
+2. Se conserva la asignación del lote **con más despachos** (a igualdad, el de mayor `route_batch_id`); en los demás la columna
    (`vehicle_id` o `driver_id`) pasa a `NULL`. Un lote puede existir sin asignar, y el estado
    (`status`) y los despachos del lote no cambian.
 3. Cada limpieza deja un evento `migration_013_assignment_cleared` en `route_batch_events`
@@ -62,15 +63,31 @@ una tabla nueva. El bloqueo de `DELETE` no cubre `TRUNCATE` (inmutabilidad por c
 
 ## Efecto en el backend (no se modifica en esta subtarea)
 
-- Los `INSERT INTO route_batches` deben indicar `status`.
-- Con el trigger de `DELETE` y las FK `RESTRICT`, la limpieza de las pruebas e2e que borran
-  despachos, eventos o lotes debe hacerse con `SET LOCAL app.allow_event_purge = 'on'` y borrando
+El backend actual **falla contra una base migrada** hasta que llegue ST-49.4. Avisar al equipo antes
+de aplicar la 013 en una base compartida (`dev`/`test`):
+
+- `INSERT INTO route_batches` sin `status` y `INSERT INTO dispatch_reschedules` sin
+  `rescheduled_by_type` fallan con `23502` (ambas columnas son `NOT NULL` sin default, como pide el plan).
+- `DELETE FROM dispatches` falla con `23503` para cualquier despacho con eventos
+  (`dispatch_events.dispatch_id` ahora es `RESTRICT`), no solo en las pruebas: un despacho se anula
+  (`cancelled`), no se borra.
+- Los `DELETE` y `UPDATE` sobre `dispatch_events` y `route_batch_events` quedan bloqueados. La
+  limpieza de las pruebas e2e debe hacerse con `SET LOCAL app.allow_event_purge = 'on'` y borrando
   primero `dispatch_events` y `route_batch_events` (A-3). Lo resuelve ST-49.4.
 
 ## Qué hace `down.sql`
 
-Revierte en orden inverso. Elimina `cancelled` y los motivos sembrados solo si nada los usa.
-**Reactiva Express** (su valor de semilla). Restaura las asignaciones
-limpiadas por duplicado desde `route_batch_events` y luego elimina la tabla: los eventos
-registrados después de aplicar la migración se pierden, así que es una reversión de desarrollo,
-no de producción.
+Revierte en orden inverso, pensado para desarrollo, no para producción. Hay que tener presente:
+
+- **Pierde datos nuevos**: elimina las columnas agregadas con su contenido (`status`, `closed_at`,
+  `proposed_driver_id`… de `route_batches`; `actor_user_id`, `actor_type`, `reason`, `metadata` de
+  `dispatch_events`; las de `dispatches`, `dispatch_reschedules`, `incident_reasons` y `vehicles`) y
+  la tabla `route_batch_events` completa.
+- **Restaura asignaciones** limpiadas por duplicado desde `route_batch_events`, solo si la columna
+  sigue en `NULL`, el lote no está `cancelled` y el vehículo o usuario sigue existiendo. Puede
+  reponer un valor que alguien dejó en `NULL` a propósito después de la migración.
+- **Reactiva Express** (su valor de semilla). Si alguien lo había desactivado a propósito antes de la
+  migración, el rollback lo deja activo.
+- **Elimina `cancelled`, `RES-CLI-SELF` e `INC-COMP-FAILURE` solo si nada los usa**. Si el equipo ya
+  tenía un motivo con ese mismo código antes de la migración, `up.sql` no insertó el suyo
+  (`ON CONFLICT DO NOTHING`) y `down.sql` lo borrará si nadie lo usa.

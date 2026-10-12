@@ -36,8 +36,11 @@ DROP INDEX IF EXISTS idx_dispatch_events_actor_user_id;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_constraint
-               WHERE conname = 'dispatch_events_dispatch_id_fkey' AND confdeltype = 'r') THEN
+               WHERE conname = 'dispatch_events_dispatch_id_fkey' AND conrelid = 'dispatch_events'::regclass AND confdeltype = 'r') THEN
         ALTER TABLE dispatch_events DROP CONSTRAINT dispatch_events_dispatch_id_fkey;
+        ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_dispatch_id_fkey
+            FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE CASCADE;
+    ELSIF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatch_events_dispatch_id_fkey' AND conrelid = 'dispatch_events'::regclass) THEN
         ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_dispatch_id_fkey
             FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE CASCADE;
     END IF;
@@ -78,6 +81,7 @@ BEGIN
           AND e.metadata ->> 'field' = 'vehicle_id'
           AND e.route_batch_id = rb.route_batch_id
           AND rb.vehicle_id IS NULL
+          AND rb.status <> 'cancelled'
           AND EXISTS (SELECT 1 FROM vehicles v WHERE v.vehicle_id = (e.metadata ->> 'previous_vehicle_id')::INT);
 
         UPDATE route_batches rb
@@ -87,6 +91,7 @@ BEGIN
           AND e.metadata ->> 'field' = 'driver_id'
           AND e.route_batch_id = rb.route_batch_id
           AND rb.driver_id IS NULL
+          AND rb.status <> 'cancelled'
           AND EXISTS (SELECT 1 FROM users u WHERE u.user_id = (e.metadata ->> 'previous_driver_id')::INT);
     END IF;
 END $$;

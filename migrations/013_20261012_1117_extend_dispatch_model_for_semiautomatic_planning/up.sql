@@ -70,32 +70,33 @@ ALTER TABLE route_batches
 
 -- Las filas del Sprint 1 ya fueron armadas a mano: no son `provisional`. Una ruta de un día
 -- anterior a hoy ya se ejecutó (`closed`); una de hoy o futura es un lote ya confirmado.
+-- "Hoy" es la fecha en America/La_Paz (la zona del negocio), no la del huso de la sesión.
 -- `closed_at` queda NULL en las cerradas por backfill: el momento real de cierre no se conoce.
 UPDATE route_batches
-SET status = CASE WHEN shift_date < CURRENT_DATE THEN 'closed' ELSE 'confirmed' END
+SET status = CASE WHEN shift_date < (NOW() AT TIME ZONE 'America/La_Paz')::date THEN 'closed' ELSE 'confirmed' END
 WHERE status IS NULL;
 
 ALTER TABLE route_batches ALTER COLUMN status SET NOT NULL;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_route_batches_status') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_route_batches_status' AND conrelid = 'route_batches'::regclass) THEN
         ALTER TABLE route_batches ADD CONSTRAINT chk_route_batches_status
             CHECK (status IN ('provisional', 'pending_final_review', 'confirmed', 'in_execution', 'closed', 'cancelled'));
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_delivery_zone_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_delivery_zone_id_fkey' AND conrelid = 'route_batches'::regclass) THEN
         ALTER TABLE route_batches ADD CONSTRAINT route_batches_delivery_zone_id_fkey
             FOREIGN KEY (delivery_zone_id) REFERENCES delivery_zones(delivery_zone_id);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_origin_warehouse_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_origin_warehouse_id_fkey' AND conrelid = 'route_batches'::regclass) THEN
         ALTER TABLE route_batches ADD CONSTRAINT route_batches_origin_warehouse_id_fkey
             FOREIGN KEY (origin_warehouse_id) REFERENCES warehouses(warehouse_id);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_proposed_driver_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_proposed_driver_id_fkey' AND conrelid = 'route_batches'::regclass) THEN
         ALTER TABLE route_batches ADD CONSTRAINT route_batches_proposed_driver_id_fkey
             FOREIGN KEY (proposed_driver_id) REFERENCES users(user_id) ON DELETE SET NULL;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_reviewer_user_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_batches_reviewer_user_id_fkey' AND conrelid = 'route_batches'::regclass) THEN
         ALTER TABLE route_batches ADD CONSTRAINT route_batches_reviewer_user_id_fkey
             FOREIGN KEY (reviewer_user_id) REFERENCES users(user_id) ON DELETE SET NULL;
     END IF;
@@ -109,8 +110,8 @@ CREATE INDEX IF NOT EXISTS idx_route_batches_reviewer_user_id    ON route_batche
 
 -- 4. Duplicados del Sprint 1 antes de crear los índices únicos. En cada grupo de lotes no
 --    cancelados con el mismo vehículo (o conductor) y la misma fecha se conserva la asignación
---    del lote de mayor `route_batch_id`; en los demás la columna pasa a NULL (un lote puede
---    existir sin asignar). El valor original queda en `route_batch_events` y `down.sql` lo
+--    del lote con más despachos (a igualdad, el de mayor `route_batch_id`); en los demás la
+--    columna pasa a NULL (un lote puede existir sin asignar). El valor original queda en `route_batch_events` y `down.sql` lo
 --    restaura. Si no hay duplicados no hace nada.
 DO $$
 DECLARE
@@ -124,7 +125,8 @@ BEGIN
                    FIRST_VALUE(route_batch_id) OVER w AS kept_id
             FROM route_batches
             WHERE vehicle_id IS NOT NULL AND status <> 'cancelled'
-            WINDOW w AS (PARTITION BY vehicle_id, shift_date ORDER BY route_batch_id DESC)
+            WINDOW w AS (PARTITION BY vehicle_id, shift_date ORDER BY (SELECT COUNT(*) FROM dispatches dd WHERE dd.route_batch_id = route_batches.route_batch_id) DESC,
+                             route_batch_id DESC)
         ) d
         WHERE rn > 1
     LOOP
@@ -146,7 +148,8 @@ BEGIN
                    FIRST_VALUE(route_batch_id) OVER w AS kept_id
             FROM route_batches
             WHERE driver_id IS NOT NULL AND status <> 'cancelled'
-            WINDOW w AS (PARTITION BY driver_id, shift_date ORDER BY route_batch_id DESC)
+            WINDOW w AS (PARTITION BY driver_id, shift_date ORDER BY (SELECT COUNT(*) FROM dispatches dd WHERE dd.route_batch_id = route_batches.route_batch_id) DESC,
+                             route_batch_id DESC)
         ) d
         WHERE rn > 1
     LOOP
@@ -180,11 +183,11 @@ ALTER TABLE dispatches
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatches_customer_confirmation') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatches_customer_confirmation' AND conrelid = 'dispatches'::regclass) THEN
         ALTER TABLE dispatches ADD CONSTRAINT chk_dispatches_customer_confirmation
             CHECK (customer_confirmation IN ('pending', 'confirmed', 'rescheduled', 'change_requested'));
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatches_origin_warehouse_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatches_origin_warehouse_id_fkey' AND conrelid = 'dispatches'::regclass) THEN
         ALTER TABLE dispatches ADD CONSTRAINT dispatches_origin_warehouse_id_fkey
             FOREIGN KEY (origin_warehouse_id) REFERENCES warehouses(warehouse_id);
     END IF;
@@ -202,18 +205,21 @@ ALTER TABLE dispatch_events
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatch_events_actor_type') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatch_events_actor_type' AND conrelid = 'dispatch_events'::regclass) THEN
         ALTER TABLE dispatch_events ADD CONSTRAINT chk_dispatch_events_actor_type
             CHECK (actor_type IN ('user', 'system', 'customer'));
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatch_events_actor_user_id_fkey') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatch_events_actor_user_id_fkey' AND conrelid = 'dispatch_events'::regclass) THEN
         ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_actor_user_id_fkey
             FOREIGN KEY (actor_user_id) REFERENCES users(user_id) ON DELETE RESTRICT;
     END IF;
     -- dispatch_id: de CASCADE a RESTRICT (un despacho con historial no se borra en silencio).
     IF EXISTS (SELECT 1 FROM pg_constraint
-               WHERE conname = 'dispatch_events_dispatch_id_fkey' AND confdeltype <> 'r') THEN
+               WHERE conname = 'dispatch_events_dispatch_id_fkey' AND conrelid = 'dispatch_events'::regclass AND confdeltype <> 'r') THEN
         ALTER TABLE dispatch_events DROP CONSTRAINT dispatch_events_dispatch_id_fkey;
+        ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_dispatch_id_fkey
+            FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE RESTRICT;
+    ELSIF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dispatch_events_dispatch_id_fkey' AND conrelid = 'dispatch_events'::regclass) THEN
         ALTER TABLE dispatch_events ADD CONSTRAINT dispatch_events_dispatch_id_fkey
             FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE RESTRICT;
     END IF;
@@ -258,7 +264,7 @@ ALTER TABLE dispatch_reschedules ALTER COLUMN rescheduled_by_type SET NOT NULL;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatch_reschedules_rescheduled_by_type') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dispatch_reschedules_rescheduled_by_type' AND conrelid = 'dispatch_reschedules'::regclass) THEN
         ALTER TABLE dispatch_reschedules ADD CONSTRAINT chk_dispatch_reschedules_rescheduled_by_type
             CHECK (rescheduled_by_type IN ('customer', 'coordinator', 'system'));
     END IF;
@@ -275,7 +281,8 @@ ON CONFLICT DO NOTHING;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                   WHERE table_name = 'incident_reasons' AND column_name = 'counts_as_attempt') THEN
+                   WHERE table_schema = current_schema()
+                     AND table_name = 'incident_reasons' AND column_name = 'counts_as_attempt') THEN
         ALTER TABLE incident_reasons ADD COLUMN counts_as_attempt BOOLEAN NOT NULL DEFAULT FALSE;
         UPDATE incident_reasons SET counts_as_attempt = TRUE
         WHERE code IN ('INC-CUST-ABSENT', 'INC-ADDR-INVALID');
@@ -296,15 +303,15 @@ ALTER TABLE vehicles
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_length_cm') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_length_cm' AND conrelid = 'vehicles'::regclass) THEN
         ALTER TABLE vehicles ADD CONSTRAINT chk_vehicles_max_package_length_cm
             CHECK (max_package_length_cm IS NULL OR max_package_length_cm > 0);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_width_cm') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_width_cm' AND conrelid = 'vehicles'::regclass) THEN
         ALTER TABLE vehicles ADD CONSTRAINT chk_vehicles_max_package_width_cm
             CHECK (max_package_width_cm IS NULL OR max_package_width_cm > 0);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_height_cm') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_vehicles_max_package_height_cm' AND conrelid = 'vehicles'::regclass) THEN
         ALTER TABLE vehicles ADD CONSTRAINT chk_vehicles_max_package_height_cm
             CHECK (max_package_height_cm IS NULL OR max_package_height_cm > 0);
     END IF;
