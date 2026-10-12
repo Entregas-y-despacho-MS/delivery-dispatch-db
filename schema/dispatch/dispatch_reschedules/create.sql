@@ -1,5 +1,5 @@
 -- Tabla de log append-only: a diferencia del resto de las tablas del proyecto, no lleva
--- updated_at porque una reprogramación ya registrada nunca se modifica.
+-- updated_at porque una reprogramación ya registrada nunca se modifica (convención: sin trigger).
 -- Cubre tanto reprogramación (cambio de ventana horaria, RF-A05) como reasignación
 -- (cambio de ruta ante contingencias, RF-A16) — reschedule_reasons (RF-A33) agrupa los
 -- motivos de ambas. Una fila puede cambiar la ventana, la ruta, o las dos cosas.
@@ -7,7 +7,7 @@ CREATE TABLE dispatch_reschedules (
     dispatch_reschedule_id   SERIAL,
     dispatch_id              INT NOT NULL,                   -- despacho reprogramado/reasignado
     reschedule_reason_id     INT NOT NULL,                   -- motivo de la reprogramación o reasignación
-    rescheduled_by           INT,                            -- usuario que la ejecutó; NULL si fue automática
+    rescheduled_by           INT,                            -- usuario que la ejecutó; NULL si fue automática o por autoservicio del cliente
     rescheduled_by_type      VARCHAR(20)     NOT NULL,       -- quién la originó: customer | coordinator | system
     previous_route_batch_id  INT,                            -- ruta anterior (NULL si no cambió de ruta, o no tenía ruta asignada)
     new_route_batch_id       INT,                            -- ruta nueva (NULL si no cambió de ruta)

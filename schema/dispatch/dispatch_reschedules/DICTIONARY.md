@@ -41,8 +41,8 @@ Historial de reprogramaciones y reasignaciones de un despacho: cada vez que camb
 
 ## Technical notes
 
-- `dispatch_id` usa `ON DELETE CASCADE`: el historial no tiene sentido si se elimina el despacho.
+- `dispatch_id` usa `ON DELETE CASCADE`: el historial no tiene sentido si se elimina el despacho. En la práctica un despacho con eventos no se borra (`dispatch_events` es `RESTRICT`): se anula (`cancelled`).
 - `previous_route_batch_id`/`new_route_batch_id` usan `ON DELETE SET NULL`: si esa ruta se elimina más adelante, el registro histórico se conserva, solo pierde la referencia.
 - `chk_dispatch_reschedules_has_change` impide una fila que no cambie ni ventana ni ruta (evita registros vacíos sin sentido).
-- Tabla append-only: un registro ya escrito no se modifica, por eso no tiene `updated_at`.
+- Tabla append-only: un registro ya escrito no se modifica, por eso no tiene `updated_at`. Es solo convención: a diferencia de `dispatch_events` y `route_batch_events`, ningún trigger lo impone.
 - `chk_dispatch_reschedules_rescheduled_by_type` restringe `rescheduled_by_type` a sus 3 valores. Agregada por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3): las filas previas con `rescheduled_by` NULL quedaron como `system`, y las que tenían usuario como `coordinator` (decisión propia: el plan solo fijaba el caso NULL; quienes reprograman son coordinadores o supervisores).

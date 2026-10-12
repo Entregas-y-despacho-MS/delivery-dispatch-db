@@ -27,7 +27,7 @@ Agrupa uno o varios despachos de **una zona y una fecha** bajo un mismo repartid
 | Status | Significado |
 |--------|-------------|
 | `provisional` | Propuesto por el generador, asignado a un coordinador para la 1.ª aprobación (promesas). Admite pedidos nuevos sin mover las paradas ya notificadas |
-| `pending_final_review` | Tras el corte de D-1, optimizado y validado; espera la 2.ª aprobación |
+| `pending_final_review` | Tras el corte de D-1, optimizado y validado; espera la 2.ª aprobación. Si falla la validación o la revisión, vuelve a `provisional` |
 | `confirmed` | Aprobado: lote, pedidos, repartidor y vehículo confirmados y **congelado**. El repartidor puede aceptarlo y cotejar la carga |
 | `in_execution` | El repartidor inició la ruta |
 | `closed` | Ya no queda ninguna parada abierta (`assigned`, `out_for_delivery` o `in_transit`) |
@@ -59,5 +59,5 @@ Agrupa uno o varios despachos de **una zona y una fecha** bajo un mismo repartid
 - `chk_route_batches_status` restringe `status` a los 6 valores de arriba.
 - `uq_route_batches_vehicle_shift_date` y `uq_route_batches_driver_shift_date` (únicos parciales sobre `(vehicle_id, shift_date)` y `(driver_id, shift_date)`) excluyen los lotes `cancelled` y los valores nulos.
 - Columnas agregadas por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3): `status`, `version`, `delivery_zone_id`, `origin_warehouse_id`, `proposed_driver_id`, `reviewer_user_id`, `accepted_at` y `closed_at`.
-  - **Filas del Sprint 1**: `status` = `closed` si `shift_date` es anterior a la fecha de la migración y `confirmed` en otro caso (nunca `provisional`); `version` = 0; el resto, NULL.
-  - **Duplicados**: antes de crear los índices únicos, en cada grupo de lotes no cancelados con el mismo vehículo (o conductor) y la misma fecha se conserva la asignación del lote de mayor `route_batch_id`; en los demás esa columna pasa a NULL. El valor original queda en `route_batch_events` (`event_type = 'migration_013_assignment_cleared'`, `actor_type = 'system'`, con `metadata` que incluye `field`, el valor anterior, `shift_date` y `kept_route_batch_id`), y `down.sql` lo restaura. Es una decisión propia de ST-49.3: el plan v3 exigía detectar y documentar el tratamiento pero no lo fijaba.
+  - **Filas del Sprint 1**: `status` = `closed` si `shift_date` es anterior a la fecha de la migración (en `America/La_Paz`) y `confirmed` en otro caso (nunca `provisional`); `version` = 0; el resto, NULL.
+  - **Duplicados**: antes de crear los índices únicos, en cada grupo de lotes no cancelados con el mismo vehículo (o conductor) y la misma fecha se conserva la asignación del lote con más despachos (a igualdad, el de mayor `route_batch_id`); en los demás esa columna pasa a NULL. Incluye lotes históricos `closed`, porque el índice único los abarca. El valor original queda en `route_batch_events` (`event_type = 'migration_013_assignment_cleared'`, `actor_type = 'system'`, con `metadata` que incluye `field`, el valor anterior, `shift_date` y `kept_route_batch_id`), y `down.sql` lo restaura. Es una decisión propia de ST-49.3: el plan v3 exigía detectar y documentar el tratamiento pero no lo fijaba.

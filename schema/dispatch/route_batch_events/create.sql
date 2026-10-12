@@ -6,7 +6,7 @@ CREATE TABLE route_batch_events (
     route_batch_event_id  SERIAL,
     route_batch_id        INT             NOT NULL,                        -- lote al que corresponde el evento
     dispatch_id           INT,                                             -- despacho involucrado, si el evento es sobre un pedido concreto
-    event_type            VARCHAR(50)     NOT NULL,                        -- created | split | merged | order_removed | approved | frozen | reviewer_reassigned | ...
+    event_type            VARCHAR(50)     NOT NULL,                        -- created | split | merged | order_removed | approved | frozen | reviewer_reassigned | migration_013_assignment_cleared | ...
     actor_user_id         INT,                                             -- usuario que originó el evento; NULL si lo generó el sistema o el cliente
     actor_type            VARCHAR(20)     NOT NULL,                        -- user | system | customer
     reason                TEXT,                                            -- motivo declarado del evento

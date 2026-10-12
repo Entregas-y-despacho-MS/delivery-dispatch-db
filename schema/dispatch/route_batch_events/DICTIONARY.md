@@ -31,7 +31,7 @@ Bitácora de eventos de cada lote (`route_batches`): crear, dividir, fusionar, s
 
 ## Technical notes
 
-- **Tabla de log append-only**: no tiene `updated_at` (mismo criterio que `dispatch_events`). La inmutabilidad la imponen los triggers `trg_route_batch_events_prevent_update` (bloquea todo `UPDATE`) y `trg_route_batch_events_prevent_delete` (bloquea `DELETE` salvo que la sesión tenga `app.allow_event_purge = 'on'`, uso reservado a la limpieza de pruebas). `TRUNCATE` no se bloquea: la inmutabilidad total es por convención.
+- **Tabla de log append-only**: no tiene `updated_at` (mismo criterio que `dispatch_events`). La inmutabilidad la imponen los triggers `trg_route_batch_events_prevent_update` / `fn_route_batch_events_prevent_update()` (bloquea todo `UPDATE`) y `trg_route_batch_events_prevent_delete` / `fn_route_batch_events_prevent_delete()` (bloquea `DELETE` salvo que la sesión tenga `app.allow_event_purge = 'on'`, uso reservado a la limpieza de pruebas). `TRUNCATE` no se bloquea: la inmutabilidad total es por convención.
 - Las tres FK usan `ON DELETE RESTRICT`: un lote, un despacho o un usuario con eventos no se borra en silencio.
 - `chk_route_batch_events_actor_type` restringe `actor_type`. A diferencia de `dispatch_events`, es `NOT NULL` porque la tabla es nueva y el autor siempre se conoce.
 - Creada por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3). El backend (ST-49.4) debe agregar la entidad correspondiente.

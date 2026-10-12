@@ -71,11 +71,12 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 ## Technical notes
 
 - `tracking_token` es único; se usa en vez del `dispatch_id` para no exponer un identificador secuencial interno al Cliente Final.
-- `route_batch_id` usa `ON DELETE SET NULL`: si la ruta se elimina, el despacho no se pierde, solo queda sin ruta asignada.
+- `route_batch_id` usa `ON DELETE SET NULL`: si la ruta se elimina, el despacho no se pierde, solo queda sin ruta asignada. Un lote con eventos en `route_batch_events` (FK `RESTRICT`) no se puede borrar.
+- Restricciones nombradas: `chk_dispatches_priority` (`urgent` o `normal`), `chk_dispatches_evidence_policy` y `uq_dispatches_tracking_code` (único sobre `tracking_code`).
 - `chk_dispatches_customer_confirmation` restringe `customer_confirmation` a sus 4 valores. `origin_warehouse_id` no tiene `ON DELETE` (restrictivo) y tiene su índice `idx_dispatches_origin_warehouse_id`.
 - Columnas `version`, `customer_confirmation`, `order_confirmed_at`, `promise_notified_at`, `promise_firmed_at` y `origin_warehouse_id` agregadas por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3). Las filas previas quedaron con `version = 0`, `customer_confirmation = 'pending'` y el resto en NULL.
 - `dispatch_events` referencia al despacho con `ON DELETE RESTRICT`: un despacho con historial no se borra; se anula (`cancelled`).
 - `uq_dispatches_route_batch_sequence` (único parcial sobre `route_batch_id, sequence_order`) impide que dos despachos de la misma ruta queden con el mismo orden de visita.
-- `tracking_code`: `next_tracking_code()` incrementa `tracking_code_counters` (una fila por año) con un UPSERT que bloquea la fila, por lo que es seguro ante concurrencia y reinicia cada año. El trigger `trg_dispatches_tracking_code_immutable` impide cambiarlo una vez asignado. Es nullable para no romper filas previas.
+- `tracking_code`: `next_tracking_code()` incrementa `tracking_code_counters` (una fila por año) con un UPSERT que bloquea la fila, por lo que es seguro ante concurrencia y reinicia cada año. El trigger `trg_dispatches_tracking_code_immutable` (función `prevent_tracking_code_change()`) impide cambiarlo una vez asignado. Es nullable para no romper filas previas.
 - `idx_dispatches_delivery_point`: índice GiST parcial sobre `point(longitud, latitud)` para consultas espaciales; usa tipos nativos porque la imagen `postgres:18-alpine` no trae PostGIS.
 - Los bultos del despacho (peso y medidas reales) viven en `dispatch_packages`.
