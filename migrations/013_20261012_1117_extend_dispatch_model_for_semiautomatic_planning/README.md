@@ -70,7 +70,7 @@ una tabla nueva. El bloqueo de `DELETE` no cubre `TRUNCATE` (inmutabilidad por c
 ## Qué hace `down.sql`
 
 Revierte en orden inverso. Elimina `cancelled` y los motivos sembrados solo si nada los usa.
-**No reactiva Express** (no se sabe si alguien lo cambió después). Restaura las asignaciones
+**Reactiva Express** (su valor de semilla). Restaura las asignaciones
 limpiadas por duplicado desde `route_batch_events` y luego elimina la tabla: los eventos
 registrados después de aplicar la migración se pierden, así que es una reversión de desarrollo,
 no de producción.

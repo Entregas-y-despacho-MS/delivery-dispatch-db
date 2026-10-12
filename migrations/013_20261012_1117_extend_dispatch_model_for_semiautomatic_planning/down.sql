@@ -1,7 +1,8 @@
 -- Orden inverso a up.sql.
 
--- 10. service_levels: up.sql desactivó Express; no se reactiva (no se sabe si alguien lo cambió
---     después). Ver README.
+-- 10. service_levels: Express vuelve a su valor de semilla (activo), que es el que tenía antes de up.sql.
+UPDATE service_levels SET active = TRUE
+WHERE name = 'Express' AND deleted_at IS NULL AND active = FALSE;
 
 -- 9. vehicles
 ALTER TABLE vehicles DROP CONSTRAINT IF EXISTS chk_vehicles_max_package_height_cm;
