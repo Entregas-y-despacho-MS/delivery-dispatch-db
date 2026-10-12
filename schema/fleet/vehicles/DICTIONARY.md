@@ -13,6 +13,9 @@ La flota de vehículos disponible para despachos y traslados.
 | plate | VARCHAR(15) | NO | — | Placa |
 | capacity_kg | NUMERIC(10,2) | NO | — | Capacidad de carga en kg — misma unidad que `dispatches.estimated_weight_kg`, para poder validar antes de asignar pedidos (RF-A03) sin ambigüedad de unidades |
 | capacity_m3 | NUMERIC(10,2) | NO | — | Capacidad volumétrica en metros cúbicos — junto con `capacity_kg`, evita sobrecargas por peso o por volumen |
+| max_package_length_cm | NUMERIC(8,2) | YES | — | Largo máximo de bulto que admite el vehículo, en cm; NULL = sin límite declarado |
+| max_package_width_cm | NUMERIC(8,2) | YES | — | Ancho máximo de bulto que admite, en cm; NULL = sin límite declarado |
+| max_package_height_cm | NUMERIC(8,2) | YES | — | Alto máximo de bulto que admite, en cm; NULL = sin límite declarado |
 | deleted_at | TIMESTAMPTZ | YES | — | Baja permanente de la flota (soft delete) |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
@@ -27,8 +30,10 @@ La flota de vehículos disponible para despachos y traslados.
 
 - El supervisor de flota y el coordinador administran el catálogo de vehículos (RF-A30). Peso y volumen máximos deben ser mayores a cero (validado en la API, 400 si no). Un vehículo dado de baja (`deleted_at`) no se borra en duro porque hay despachos y mantenimientos históricos que lo referencian — solo deja de aparecer como opción para asignar.
 - Se usa para camiones de gran volumen en traslados de/hacia proveedor, no solo para reparto de última milla.
+- Las tres medidas máximas de bulto sirven para validar, junto con la capacidad en peso y volumen, que los bultos reales (`dispatch_packages`) caben en el vehículo antes de asignarlos. La validación la hace el backend; un vehículo sin medidas declaradas (NULL) no se restringe por tamaño de bulto.
 
 ## Technical notes
 
 - `plate` es única solo entre vehículos no borrados (`WHERE deleted_at IS NULL`).
+- `chk_vehicles_max_package_length_cm`, `chk_vehicles_max_package_width_cm` y `chk_vehicles_max_package_height_cm` exigen `> 0` cuando el valor existe. Columnas agregadas por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3); los vehículos previos quedaron en NULL.
 - `model` y `capacity_m3` se agregaron con la migración `001_..._add_model_and_capacity_m3_to_vehicles` (RF-A30); las filas previas a la migración quedaron con `model = 'Unspecified'` y `capacity_m3 = 0` como marcadores.

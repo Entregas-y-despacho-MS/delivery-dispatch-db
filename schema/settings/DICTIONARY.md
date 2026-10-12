@@ -18,6 +18,27 @@ Parámetros generales del servicio, en formato clave-valor.
 - `session_inactivity_minutes` (RF-A24, cierre automático por inactividad) — no aplica a la app móvil del repartidor en ruta, que persiste la sesión vía refresh tokens a propósito.
 - `order_reservation_ttl_minutes` (RF-A40, ST-48.2) — minutos que dura la reserva suave de un pedido sin actividad del coordinador (15 por defecto); lo administra el coordinador.
 - Los parámetros operativos de planificación y entrega de ST-57.2 se inicializan en `data.sql`; el coordinador puede consultarlos y actualizarlos desde el backend. Las horas usan la zona local `America/La_Paz` cuando su descripción lo indica.
+- Verificado en ST-49.3: la tabla ya contiene todas las claves de la sección 6.3 del plan de planificación semiautomática, de modo que la migración 013 **no siembra ninguna clave nueva**. `max_delivery_attempts` se compara con los intentos que suman los motivos con `incident_reasons.counts_as_attempt = TRUE`. Las claves vacías (`stop_service_minutes`, `planning_margin_pct`, `warehouse_prep_lead_minutes`, `reschedule_code_expiry_minutes`) siguen sin valor a propósito: no se inventa uno.
+
+## Parámetros base
+
+Claves sembradas por `data.sql` antes de los parámetros operativos de ST-57.2.
+
+| Key | Initial value | Description |
+|-----|---------------|-------------|
+| `delivery_window_start` | `08:00` | Inicio de la ventana general de entregas (límite exterior) |
+| `delivery_window_end` | `20:00` | Fin de la ventana general de entregas (límite exterior) |
+| `max_wait_time_min` | `15` | Tiempo máximo de espera en el punto de entrega, en minutos |
+| `sla_alert_threshold_pct` | `90` | Porcentaje mínimo de cumplimiento de SLA antes de disparar una alerta |
+| `password_min_length` | `8` | Longitud mínima de la contraseña |
+| `password_expiration_days` | `90` | Días antes de exigir el cambio de contraseña |
+| `otp_code_length` | `6` | Cantidad de dígitos del código OTP de confirmación de entrega |
+| `otp_expiry_minutes` | `60` | Minutos que un código OTP sigue siendo válido |
+| `max_failed_login_attempts` | `5` | Intentos de inicio de sesión fallidos antes de bloquear la cuenta |
+| `account_lockout_minutes` | `15` | Minutos que una cuenta permanece bloqueada |
+| `password_reset_expiry_minutes` | `30` | Minutos de validez del token de restablecimiento de contraseña |
+| `session_inactivity_minutes` | `30` | Minutos de inactividad antes de cerrar la sesión (no aplica a la app móvil del repartidor en ruta) |
+| `order_reservation_ttl_minutes` | `15` | Minutos que dura la reserva suave de un pedido sin actividad (migración 010) |
 
 ## Initial operational settings
 

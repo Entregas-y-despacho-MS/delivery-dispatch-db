@@ -36,6 +36,12 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | tracking_code | VARCHAR(20) | YES | — | Código de traslado `DSP-AAAA-NNNNN` (año y secuencia de 5 dígitos con reinicio anual). Único e inmutable; se genera con `next_tracking_code()` |
 | evidence_policy | VARCHAR(30) | NO | 'hand_delivery_standard' | Política de evidencia exigida: `hand_delivery_standard`, `contactless_delivery` o `high_value_control` |
 | confirmed_at | TIMESTAMPTZ | YES | — | Momento en que se confirmó la entrega, el recojo o la recepción en destino |
+| version | INT | NO | 0 | Versión de planificación del pedido: solo cambia al aprobar, mover, fusionar o congelar. Las transiciones del repartidor y las posiciones GPS no la incrementan; no es un contador de cambios |
+| customer_confirmation | VARCHAR(20) | NO | 'pending' | Respuesta del cliente a la promesa: `pending`, `confirmed`, `rescheduled` o `change_requested` |
+| order_confirmed_at | TIMESTAMPTZ | YES | — | Confirmación comercial del pedido (D0), desde la que corre el plazo de entrega |
+| promise_notified_at | TIMESTAMPTZ | YES | — | Primer aviso válido de la promesa al cliente. **No se renueva** al reprogramar |
+| promise_firmed_at | TIMESTAMPTZ | YES | — | Momento en que la promesa quedó firme (confirmación del cliente, reprogramación o vencimiento de la ventana con aviso válido). Dispara `dispatch.shipment.prepare_requested` |
+| origin_warehouse_id | INT | YES | — | Almacén de origen de la carga |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
 
@@ -48,6 +54,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | delivery_zone_id | delivery_zones.delivery_zone_id | Zona de reparto asignada |
 | service_level_id | service_levels.service_level_id | Nivel de servicio contratado |
 | route_batch_id | route_batches.route_batch_id | Ruta (repartidor + vehículo + turno) a la que pertenece este despacho |
+| origin_warehouse_id | warehouses.warehouse_id | Almacén de origen de la carga |
 
 ## Business rules
 
@@ -55,6 +62,8 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - El aviso de que un paquete está "físicamente listo" (`package_ready_at`) puede llegar después de que el despacho ya exista: el coordinador puede planificar la ruta del día con el preaviso, antes de que el paquete esté realmente listo para retirar.
 - El coordinador agrupa despachos por zona y valida la capacidad del vehículo antes de asignar (RF-A03) armando una `route_batches`, le asigna repartidor y vehículo a esa ruta (RF-A04) — no despacho por despacho — reprograma entregas fallidas dejando registro en `dispatch_reschedules` (RF-A05), y puede marcar/filtrar por prioridad (RF-A11).
 - Despachos no gestiona pagos: `payment_status_label` es solo informativo, recibido tal cual del sistema origen.
+- **Promesa al cliente.** El sistema propone el lote (`in_planning`); con la 1.ª aprobación el pedido pasa a `scheduled` y se avisa al cliente (`promise_notified_at`). La promesa queda firme (`promise_firmed_at`) cuando el cliente confirma, reprograma o vence la ventana de respuesta con un aviso válido. `customer_confirmation` no reemplaza a `promise_firmed_at`: puede pasar a `change_requested` sin que la promesa haya quedado firme.
+- La reprogramación por autoservicio del cliente cambia el lote del pedido y lo deja en `scheduled`; no pasa por el estado `rescheduled` (que es del coordinador o de una entrega fallida).
 - **Despachos no geocodifica direcciones.** `delivery_latitude`/`delivery_longitude` llegan resueltas en el mismo mensaje que `delivery_address`, igual que `payment_status_label` — el usuario que genera el pedido marca la ubicación en un mapa aguas arriba (antes de que Despachos se entere del pedido), y esa coordenada viaja junto con el resto de los datos del preaviso. No hace falta ningún servicio externo de geocodificación en este microservicio.
 - El coordinador consulta el detalle completo de un despacho específico en una vista unificada (RF-A09) — es simplemente `SELECT * FROM dispatches WHERE dispatch_id = ...` con sus relaciones, no requiere una vista o tabla aparte.
 - **El tiempo estimado de llegada (ETA, RF-U17) no se guarda como columna** — se calcula dinámicamente (última ubicación conocida + `delivery_zones.estimated_time_min` o `service_levels.target_time_min`, según cuál aplique). Decisión confirmada con el usuario: no cachearlo en `dispatches`.
@@ -62,8 +71,12 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 ## Technical notes
 
 - `tracking_token` es único; se usa en vez del `dispatch_id` para no exponer un identificador secuencial interno al Cliente Final.
-- `route_batch_id` usa `ON DELETE SET NULL`: si la ruta se elimina, el despacho no se pierde, solo queda sin ruta asignada.
+- `route_batch_id` usa `ON DELETE SET NULL`: si la ruta se elimina, el despacho no se pierde, solo queda sin ruta asignada. Un lote con eventos en `route_batch_events` (FK `RESTRICT`) no se puede borrar.
+- Restricciones nombradas: `chk_dispatches_priority` (`urgent` o `normal`), `chk_dispatches_evidence_policy` y `uq_dispatches_tracking_code` (único sobre `tracking_code`).
+- `chk_dispatches_customer_confirmation` restringe `customer_confirmation` a sus 4 valores. `origin_warehouse_id` no tiene `ON DELETE` (restrictivo) y tiene su índice `idx_dispatches_origin_warehouse_id`.
+- Columnas `version`, `customer_confirmation`, `order_confirmed_at`, `promise_notified_at`, `promise_firmed_at` y `origin_warehouse_id` agregadas por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3). Las filas previas quedaron con `version = 0`, `customer_confirmation = 'pending'` y el resto en NULL.
+- `dispatch_events` referencia al despacho con `ON DELETE RESTRICT`: un despacho con historial no se borra; se anula (`cancelled`).
 - `uq_dispatches_route_batch_sequence` (único parcial sobre `route_batch_id, sequence_order`) impide que dos despachos de la misma ruta queden con el mismo orden de visita.
-- `tracking_code`: `next_tracking_code()` incrementa `tracking_code_counters` (una fila por año) con un UPSERT que bloquea la fila, por lo que es seguro ante concurrencia y reinicia cada año. El trigger `trg_dispatches_tracking_code_immutable` impide cambiarlo una vez asignado. Es nullable para no romper filas previas.
+- `tracking_code`: `next_tracking_code()` incrementa `tracking_code_counters` (una fila por año) con un UPSERT que bloquea la fila, por lo que es seguro ante concurrencia y reinicia cada año. El trigger `trg_dispatches_tracking_code_immutable` (función `prevent_tracking_code_change()`) impide cambiarlo una vez asignado. Es nullable para no romper filas previas.
 - `idx_dispatches_delivery_point`: índice GiST parcial sobre `point(longitud, latitud)` para consultas espaciales; usa tipos nativos porque la imagen `postgres:18-alpine` no trae PostGIS.
 - Los bultos del despacho (peso y medidas reales) viven en `dispatch_packages`.
