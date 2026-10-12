@@ -18,6 +18,7 @@ Parámetros generales del servicio, en formato clave-valor.
 - `session_inactivity_minutes` (RF-A24, cierre automático por inactividad) — no aplica a la app móvil del repartidor en ruta, que persiste la sesión vía refresh tokens a propósito.
 - `order_reservation_ttl_minutes` (RF-A40, ST-48.2) — minutos que dura la reserva suave de un pedido sin actividad del coordinador (15 por defecto); lo administra el coordinador.
 - Los parámetros operativos de planificación y entrega de ST-57.2 se inicializan en `data.sql`; el coordinador puede consultarlos y actualizarlos desde el backend. Las horas usan la zona local `America/La_Paz` cuando su descripción lo indica.
+- Verificado en ST-49.3: la tabla ya contiene todas las claves de la sección 6.3 del plan de planificación semiautomática, de modo que la migración 013 **no siembra ninguna clave nueva**. `max_delivery_attempts` se compara con los intentos que suman los motivos con `incident_reasons.counts_as_attempt = TRUE`. Las claves vacías (`stop_service_minutes`, `planning_margin_pct`, `warehouse_prep_lead_minutes`, `reschedule_code_expiry_minutes`) siguen sin valor a propósito: no se inventa uno.
 
 ## Initial operational settings
 

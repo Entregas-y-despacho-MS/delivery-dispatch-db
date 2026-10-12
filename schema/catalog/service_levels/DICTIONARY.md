@@ -21,9 +21,11 @@ Catálogo de niveles de servicio de entrega ofrecidos (ej. estándar, express), 
 - El coordinador administra este catálogo (RF-A31). No se borra en duro por el historial de despachos que lo referencian.
 - **No se puede borrar un nivel con despachos activos** (`pending` o `in_transit`): la API lo rechaza y la salida es desactivarlo (`active = false`), lo que solo impide asignarlo a órdenes futuras. Un nivel sin despachos activos sí puede darse de baja (soft delete).
 - La lista se muestra ordenada por `priority_level` (1 primero) y, a igualdad, por tiempo objetivo.
+- **Express viene desactivado** (`active = false`): no se ofrece en este alcance. Un coordinador puede activarlo desde la API (RF-A31); los reportes por nivel de servicio solo muestran los niveles activos.
 
 ## Technical notes
 
 - Único solo entre niveles no borrados (`WHERE deleted_at IS NULL`).
 - `priority_level >= 1` (constraint `chk_service_levels_priority_level`).
+- La migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3) dejó `Express` con `active = false` en las bases existentes y en `data.sql`. Su `down.sql` lo reactiva (valor de semilla anterior).
 - `description`, `priority_level` y `active` se agregaron con la migración `003_..._add_description_priority_and_active_to_service_levels` (RF-A31); los niveles previos quedaron habilitados y con prioridad según su tiempo objetivo (el más corto = 1).
