@@ -1,0 +1,1 @@
+-- No initial data: pending shipment records are written by the async consumers.
