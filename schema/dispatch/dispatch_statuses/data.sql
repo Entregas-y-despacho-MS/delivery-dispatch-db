@@ -13,4 +13,5 @@ INSERT INTO dispatch_statuses (name) VALUES
     ('rescheduled'),
     ('pickup_scheduled'),
     ('picked_up_in_transit'),
-    ('returned_to_warehouse');
+    ('returned_to_warehouse'),
+    ('cancelled');

@@ -29,6 +29,12 @@ CREATE TABLE dispatches (
     tracking_code              VARCHAR(20)    ,                          -- código de traslado DSP-AAAA-NNNNN (único e inmutable; lo genera next_tracking_code())
     evidence_policy            VARCHAR(30)    NOT NULL DEFAULT 'hand_delivery_standard', -- política de evidencia exigida por Almacén
     confirmed_at               TIMESTAMPTZ    ,                          -- momento en que se confirmó la entrega, el recojo o la recepción en destino
+    version                    INT            NOT NULL DEFAULT 0,        -- versión de planificación: solo cambia al aprobar, mover, fusionar o congelar
+    customer_confirmation      VARCHAR(20)    NOT NULL DEFAULT 'pending', -- respuesta del cliente a la promesa: pending | confirmed | rescheduled | change_requested
+    order_confirmed_at         TIMESTAMPTZ    ,                          -- confirmación comercial del pedido (D0), desde la que corre el plazo de entrega
+    promise_notified_at        TIMESTAMPTZ    ,                          -- primer aviso válido de la promesa al cliente; no se renueva al reprogramar
+    promise_firmed_at          TIMESTAMPTZ    ,                          -- momento en que la promesa quedó firme (dispara dispatch.shipment.prepare_requested)
+    origin_warehouse_id        INT            ,                          -- almacén de origen de la carga
     created_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dispatch_id),
@@ -37,9 +43,11 @@ CREATE TABLE dispatches (
     FOREIGN KEY (delivery_zone_id)   REFERENCES delivery_zones(delivery_zone_id),
     FOREIGN KEY (service_level_id)   REFERENCES service_levels(service_level_id),
     FOREIGN KEY (route_batch_id)     REFERENCES route_batches(route_batch_id)         ON DELETE SET NULL,
+    FOREIGN KEY (origin_warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT chk_dispatches_priority CHECK (priority IN ('urgent', 'normal')),
     CONSTRAINT uq_dispatches_tracking_code UNIQUE (tracking_code),
-    CONSTRAINT chk_dispatches_evidence_policy CHECK (evidence_policy IN ('hand_delivery_standard', 'contactless_delivery', 'high_value_control'))
+    CONSTRAINT chk_dispatches_evidence_policy CHECK (evidence_policy IN ('hand_delivery_standard', 'contactless_delivery', 'high_value_control')),
+    CONSTRAINT chk_dispatches_customer_confirmation CHECK (customer_confirmation IN ('pending', 'confirmed', 'rescheduled', 'change_requested'))
 );
 
 CREATE INDEX idx_dispatches_status_id      ON dispatches(dispatch_status_id);
@@ -48,6 +56,7 @@ CREATE INDEX idx_dispatches_zone_id        ON dispatches(delivery_zone_id);
 CREATE INDEX idx_dispatches_service_level_id ON dispatches(service_level_id);
 CREATE INDEX idx_dispatches_route_batch_id ON dispatches(route_batch_id);
 CREATE INDEX idx_dispatches_source_order_ref ON dispatches(source_order_ref);
+CREATE INDEX idx_dispatches_origin_warehouse_id ON dispatches(origin_warehouse_id);
 
 -- Evita que dos despachos de la misma ruta queden con el mismo orden de visita
 CREATE UNIQUE INDEX uq_dispatches_route_batch_sequence ON dispatches(route_batch_id, sequence_order)
