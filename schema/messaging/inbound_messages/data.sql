@@ -1,0 +1,1 @@
+-- No initial data: inbound messages are written by the async consumers.
