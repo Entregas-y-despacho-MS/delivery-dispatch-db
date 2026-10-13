@@ -1,0 +1,1 @@
+-- No initial data: pickup items arrive with supplier purchase-order messages.
