@@ -18,6 +18,9 @@ CREATE TABLE dispatches (
     payment_status_label       VARCHAR(50)    ,                          -- etiqueta informativa de pago recibida del origen, ej. "Prepaid" — de solo lectura, Despachos no gestiona pagos
     package_contents           TEXT           ,                          -- resumen del contenido del paquete, recibido del origen — de solo lectura, Despachos no gestiona inventario
     estimated_weight_kg        NUMERIC(10,2)  ,                          -- peso estimado del paquete/carga, informado en el preaviso de preparación (escenario 1)
+    estimated_boxes            INT            ,                          -- cantidad estimada de cajas informada por Compras
+    estimated_volume_m3        NUMERIC(10,3)  ,                          -- volumen estimado de la carga en metros cúbicos
+    transport_conditions       TEXT           ,                          -- condiciones de transporte recibidas de Compras
     return_reason              TEXT           ,                          -- motivo de la devolución/garantía o del rechazo al proveedor (solo aplica a warehouse_return_pickup / supplier_return)
     scheduled_window_start     TIMESTAMPTZ    ,                          -- inicio de la ventana horaria prometida
     scheduled_window_end       TIMESTAMPTZ    ,                          -- fin de la ventana horaria prometida
@@ -37,6 +40,7 @@ CREATE TABLE dispatches (
     promise_notified_at        TIMESTAMPTZ    ,                          -- primer aviso válido de la promesa al cliente; no se renueva al reprogramar
     promise_firmed_at          TIMESTAMPTZ    ,                          -- momento en que la promesa quedó firme (dispara dispatch.shipment.prepare_requested)
     origin_warehouse_id        INT            ,                          -- almacén de origen de la carga
+    destination_warehouse_id   INT            ,                          -- almacén donde se recibirán los productos recogidos al proveedor
     created_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dispatch_id),
@@ -46,6 +50,7 @@ CREATE TABLE dispatches (
     FOREIGN KEY (service_level_id)   REFERENCES service_levels(service_level_id),
     FOREIGN KEY (route_batch_id)     REFERENCES route_batches(route_batch_id)         ON DELETE SET NULL,
     FOREIGN KEY (origin_warehouse_id) REFERENCES warehouses(warehouse_id),
+    FOREIGN KEY (destination_warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT chk_dispatches_priority CHECK (priority IN ('urgent', 'normal')),
     CONSTRAINT uq_dispatches_tracking_code UNIQUE (tracking_code),
     CONSTRAINT chk_dispatches_evidence_policy CHECK (evidence_policy IN ('hand_delivery_standard', 'contactless_delivery', 'high_value_control')),
@@ -67,6 +72,7 @@ BEGIN
         || 'ON dispatches(source_order_ref) WHERE dispatch_type_id = %s', delivery_type_id);
 END $$;
 CREATE INDEX idx_dispatches_origin_warehouse_id ON dispatches(origin_warehouse_id);
+CREATE INDEX idx_dispatches_destination_warehouse_id ON dispatches(destination_warehouse_id);
 
 -- Evita que dos despachos de la misma ruta queden con el mismo orden de visita
 CREATE UNIQUE INDEX uq_dispatches_route_batch_sequence ON dispatches(route_batch_id, sequence_order)
