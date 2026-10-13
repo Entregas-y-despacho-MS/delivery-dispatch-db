@@ -1,7 +1,7 @@
 -- Durable per-origin high-water mark and recovery state for each sales order.
 CREATE TABLE sales_order_sync_states (
     sales_order_id           VARCHAR(100)  NOT NULL,                    -- external sales-order identifier
-    source                   VARCHAR(20)   NOT NULL,                    -- marketplace or inventory
+    source                   VARCHAR(20)   NOT NULL,                    -- marketplace, inventory or procurement
     last_record_version      BIGINT        NOT NULL DEFAULT 0,         -- 0 means no version received
     base_received            BOOLEAN       NOT NULL DEFAULT FALSE,     -- confirmed or ready base was received
     cancelled_at             TIMESTAMPTZ,                              -- terminal cancellation from this source
@@ -12,7 +12,7 @@ CREATE TABLE sales_order_sync_states (
     created_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at               TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     PRIMARY KEY (sales_order_id, source),
-    CONSTRAINT chk_sales_order_sync_states_source CHECK (source IN ('marketplace', 'inventory')),
+    CONSTRAINT chk_sales_order_sync_states_source CHECK (source IN ('marketplace', 'inventory', 'procurement')),
     CONSTRAINT chk_sales_order_sync_states_version CHECK (last_record_version >= 0),
     CONSTRAINT chk_sales_order_sync_states_cancel_version CHECK (
         (cancelled_at IS NULL AND cancelled_record_version IS NULL)
