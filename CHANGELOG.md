@@ -8,6 +8,8 @@ y este proyecto sigue [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ## [Unreleased]
 
 ### Agregado
+- Migración 015 — campos opcionales y productos esperados para modelar recogidas a proveedor (ST-74.2).
+- Migración 016 — habilita el seguimiento de versiones de mensajes de Compras (ST-74.1).
 - Migración 009 — estados ampliados, `dispatch_packages`, `tracking_code` (`DSP-AAAA-NNNNN`), `evidence_policy` e índices GiST (ST-49.2).
 - Migración 010 — `dispatch_reservations` (reserva suave de pedidos) y clave `order_reservation_ttl_minutes` en `settings` (ST-48.2).
 

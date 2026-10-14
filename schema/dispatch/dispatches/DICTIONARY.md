@@ -25,6 +25,9 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | payment_status_label | VARCHAR(50) | YES | — | Etiqueta informativa de pago recibida del sistema origen (ej. "Prepaid"), parte del detalle de pedido que ve el repartidor (RF-U03); de solo lectura, Despachos no gestiona pagos |
 | package_contents | TEXT | YES | — | Resumen de los productos del paquete, parte del detalle de pedido que ve el repartidor (RF-U03: "dirección, productos, etiqueta de estado de pago"); de solo lectura, Despachos no gestiona inventario ni catálogo de productos |
 | estimated_weight_kg | NUMERIC(10,2) | YES | — | Peso estimado de la carga, informado por el origen en el preaviso de preparación, antes de que el paquete esté físicamente listo |
+| estimated_boxes | INT | YES | — | Cantidad estimada de cajas para la recogida al proveedor |
+| estimated_volume_m3 | NUMERIC(10,3) | YES | — | Volumen estimado de la carga en metros cúbicos |
+| transport_conditions | TEXT | YES | — | Condiciones especiales de transporte recibidas de Compras |
 | return_reason | TEXT | YES | — | Motivo de la devolución o garantía (solo aplica si el tipo de despacho es un recojo de devolución o una devolución a proveedor) |
 | scheduled_window_start | TIMESTAMPTZ | YES | — | Inicio de la ventana horaria prometida; el cliente puede pedir su cambio dentro de la ventana permitida (RF-U21) |
 | scheduled_window_end | TIMESTAMPTZ | YES | — | Fin de la ventana horaria prometida (mismo RF-U21 que arriba) |
@@ -44,6 +47,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | promise_notified_at | TIMESTAMPTZ | YES | — | Primer aviso válido de la promesa al cliente. **No se renueva** al reprogramar |
 | promise_firmed_at | TIMESTAMPTZ | YES | — | Momento en que la promesa quedó firme (confirmación del cliente, reprogramación o vencimiento de la ventana con aviso válido). Dispara `dispatch.shipment.prepare_requested` |
 | origin_warehouse_id | INT | YES | — | Almacén de origen de la carga |
+| destination_warehouse_id | INT | YES | — | Almacén de destino de los productos recogidos al proveedor |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
 
@@ -57,6 +61,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | service_level_id | service_levels.service_level_id | Nivel de servicio contratado |
 | route_batch_id | route_batches.route_batch_id | Ruta (repartidor + vehículo + turno) a la que pertenece este despacho |
 | origin_warehouse_id | warehouses.warehouse_id | Almacén de origen de la carga |
+| destination_warehouse_id | warehouses.warehouse_id | Almacén donde se recibirán los productos de una recogida al proveedor |
 
 ## Business rules
 
@@ -84,3 +89,5 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - `uq_dispatches_delivery_source_order_ref` impide dos entregas con la misma referencia de pedido, incluso si se cancela una; no afecta los otros tipos de despacho.
 - `delivery_reference` y `shipment_ready` fueron añadidos en la migración 014. La primera completa el mapeo acordado en ST-49.3 que faltó en la 013.
 - Los bultos del despacho (peso y medidas reales) viven en `dispatch_packages`.
+- Los productos esperados y recibidos en una recogida al proveedor viven en `dispatch_pickup_items`; el despacho conserva solo las estimaciones generales de carga.
+- `estimated_boxes`, `estimated_volume_m3`, `transport_conditions` y `destination_warehouse_id` fueron añadidos por la migración 015 para modelar recogidas al proveedor sin modificar la orden de compra de origen.
