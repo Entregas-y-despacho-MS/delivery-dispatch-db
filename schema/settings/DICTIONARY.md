@@ -61,6 +61,7 @@ Claves sembradas por `data.sql` antes de los parámetros operativos de ST-57.2.
 | `afternoon_window_end` | `18:00` | Afternoon delivery window end. |
 | `stop_service_minutes` | Empty | Unconfigured until Operations measures average service time. |
 | `planning_margin_pct` | Empty | Unconfigured until Operations calibrates the planning margin. |
+| `plan_min_orders_per_route` | `3` | Proposed minimum orders per route; the planner only warns below it (D-13); confirm with Operations. |
 | `max_reschedule_attempts` | `2` | Maximum rescheduling attempts for an order. |
 | `max_delivery_attempts` | `3` | Maximum delivery attempts for an order. |
 | `reschedule_window_days` | `2` | Days available to reschedule a delivery. |

@@ -29,6 +29,7 @@ INSERT INTO settings (setting_key, setting_value, description) VALUES
     ('afternoon_window_end', '18:00', 'End of the afternoon delivery window.'),
     ('stop_service_minutes', '', 'Not configured. Operations must measure the average service time before setting a value.'),
     ('planning_margin_pct', '', 'Not configured. Operations must calibrate the planning margin before setting a value.'),
+    ('plan_min_orders_per_route', '3', 'Proposed minimum number of orders per route; the planner only warns below it and never postpones a promise; confirm with Operations.'),
     ('max_reschedule_attempts', '2', 'Maximum number of rescheduling attempts for an order.'),
     ('max_delivery_attempts', '3', 'Maximum delivery attempts for an order.'),
     ('reschedule_window_days', '2', 'Number of days available to reschedule a delivery.'),
