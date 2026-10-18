@@ -2,3 +2,4 @@
 \i schema/auth/roles/init.sql
 \i schema/auth/users/init.sql
 \i schema/auth/password_history/init.sql
+\i schema/auth/push_tokens/init.sql

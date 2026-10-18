@@ -1,0 +1,1 @@
+-- Sin datos iniciales — se llena a medida que los repartidores inician sesión en la app móvil.
