@@ -12,7 +12,12 @@ CREATE TABLE delivery_evidences (
     dispatch_id           INT             NOT NULL,                       -- despacho al que corresponde la evidencia
     type                  VARCHAR(20)     NOT NULL,                       -- photo | signature | otp
     file_url              TEXT,                                           -- URL al archivo (foto/firma), ya comprimido por la app antes de enviarse
-    otp_code               VARCHAR(10),                                    -- código OTP, si el tipo es 'otp'
+    otp_code               VARCHAR(10),                                    -- reservado; nunca guardar aquí el OTP en claro
+    captured_at           TIMESTAMPTZ,                                    -- fecha y hora UTC de captura de la evidencia
+    latitude              NUMERIC(9,6),                                   -- latitud de captura, si está disponible
+    longitude             NUMERIC(9,6),                                   -- longitud de captura, si está disponible
+    receiver_name         VARCHAR(150),                                   -- nombre de quien recibió, para firma
+    receiver_document     VARCHAR(30),                                    -- documento de quien recibió, para firma
     created_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     PRIMARY KEY (delivery_evidence_id),
