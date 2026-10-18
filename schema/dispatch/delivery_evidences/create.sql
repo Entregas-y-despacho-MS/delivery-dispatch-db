@@ -13,7 +13,7 @@ CREATE TABLE delivery_evidences (
     type                  VARCHAR(20)     NOT NULL,                       -- photo | signature | otp
     file_url              TEXT,                                           -- URL al archivo (foto/firma), ya comprimido por la app antes de enviarse
     otp_code               VARCHAR(10),                                    -- reservado; nunca guardar aquí el OTP en claro
-    captured_at           TIMESTAMPTZ,                                    -- fecha y hora UTC de captura de la evidencia
+    captured_at           TIMESTAMPTZ,                                    -- instante de captura de la evidencia
     latitude              NUMERIC(9,6),                                   -- latitud de captura, si está disponible
     longitude             NUMERIC(9,6),                                   -- longitud de captura, si está disponible
     receiver_name         VARCHAR(150),                                   -- nombre de quien recibió, para firma
@@ -22,7 +22,10 @@ CREATE TABLE delivery_evidences (
     updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     PRIMARY KEY (delivery_evidence_id),
     FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE CASCADE,
-    CONSTRAINT chk_delivery_evidences_type CHECK (type IN ('photo', 'signature', 'otp'))
+    CONSTRAINT chk_delivery_evidences_type CHECK (type IN ('photo', 'signature', 'otp')),
+    CONSTRAINT chk_delivery_evidences_otp_code_null CHECK (otp_code IS NULL),
+    CONSTRAINT chk_delivery_evidences_latitude_range CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_delivery_evidences_longitude_range CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180)
 );
 
 CREATE INDEX idx_delivery_evidences_dispatch_id ON delivery_evidences(dispatch_id);
