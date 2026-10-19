@@ -41,7 +41,8 @@ CREATE TABLE dispatches (
     promise_firmed_at          TIMESTAMPTZ    ,                          -- momento en que la promesa quedó firme (dispara dispatch.shipment.prepare_requested)
     origin_warehouse_id        INT            ,                          -- almacén de origen de la carga
     destination_warehouse_id   INT            ,                          -- almacén donde se recibirán los productos recogidos al proveedor
-    created_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    closed_at                  TIMESTAMPTZ    ,                          -- momento en que el despacho llegó a un estado terminal (hora del evento); NULL mientras no lo sea
+    created_at                TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     PRIMARY KEY (dispatch_id),
     FOREIGN KEY (dispatch_type_id)   REFERENCES dispatch_types(dispatch_type_id),
@@ -82,6 +83,39 @@ CREATE UNIQUE INDEX uq_dispatches_route_batch_sequence ON dispatches(route_batch
 CREATE INDEX idx_dispatches_delivery_point ON dispatches
     USING GIST (point(delivery_longitude::float8, delivery_latitude::float8))
     WHERE delivery_latitude IS NOT NULL AND delivery_longitude IS NOT NULL;
+
+-- Historial de despachos (RF-A08): filtro y orden por fecha de cierre, solo sobre despachos ya cerrados
+CREATE INDEX idx_dispatches_closed_at ON dispatches(closed_at DESC) WHERE closed_at IS NOT NULL;
+
+-- Respaldo de closed_at: los escritores informan la hora real del evento (occurredAt del dispositivo);
+-- si no lo hacen, un despacho que entra a un estado terminal recibe NOW(), y uno que sale de ellos la pierde.
+CREATE FUNCTION fn_dispatches_set_closed_at() RETURNS TRIGGER AS $$
+DECLARE
+    is_terminal BOOLEAN;
+BEGIN
+    IF NEW.dispatch_status_id IS NOT DISTINCT FROM OLD.dispatch_status_id THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT s.name IN ('delivered', 'not_delivered', 'returned', 'returned_to_warehouse', 'cancelled')
+      INTO is_terminal
+      FROM dispatch_statuses s
+     WHERE s.dispatch_status_id = NEW.dispatch_status_id;
+
+    IF COALESCE(is_terminal, FALSE) THEN
+        IF NEW.closed_at IS NULL OR NEW.closed_at IS NOT DISTINCT FROM OLD.closed_at THEN
+            NEW.closed_at := NOW();
+        END IF;
+    ELSE
+        NEW.closed_at := NULL;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_dispatches_set_closed_at
+    BEFORE UPDATE OF dispatch_status_id ON dispatches
+    FOR EACH ROW EXECUTE FUNCTION fn_dispatches_set_closed_at();
 
 -- Contador anual del código de traslado: el UPSERT bloquea la fila, seguro ante concurrencia
 CREATE TABLE tracking_code_counters (

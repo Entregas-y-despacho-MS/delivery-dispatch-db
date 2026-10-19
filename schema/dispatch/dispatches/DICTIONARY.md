@@ -48,6 +48,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | promise_firmed_at | TIMESTAMPTZ | YES | — | Momento en que la promesa quedó firme (confirmación del cliente, reprogramación o vencimiento de la ventana con aviso válido). Dispara `dispatch.shipment.prepare_requested` |
 | origin_warehouse_id | INT | YES | — | Almacén de origen de la carga |
 | destination_warehouse_id | INT | YES | — | Almacén de destino de los productos recogidos al proveedor |
+| closed_at | TIMESTAMPTZ | YES | — | Momento en que el despacho llegó a un estado terminal (`delivered`, `not_delivered`, `returned`, `returned_to_warehouse`, `cancelled`). Es la hora del evento, no la de recepción; `NULL` mientras el despacho no esté en un estado terminal. Es la fecha que filtra y ordena el historial de despachos (RF-A08) |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
 
@@ -75,6 +76,8 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - El coordinador consulta el detalle completo de un despacho específico en una vista unificada (RF-A09) — es simplemente `SELECT * FROM dispatches WHERE dispatch_id = ...` con sus relaciones, no requiere una vista o tabla aparte.
 - **El tiempo estimado de llegada (ETA, RF-U17) no se guarda como columna** — se calcula dinámicamente (última ubicación conocida + `delivery_zones.estimated_time_min` o `service_levels.target_time_min`, según cuál aplique). Decisión confirmada con el usuario: no cachearlo en `dispatches`.
 
+- **Fecha de cierre (`closed_at`).** Se escribe al pasar a un estado terminal con la hora real del evento: la app móvil sincroniza con retraso, así que el backend guarda el `occurredAt` del dispositivo y no la hora de recepción. `confirmed_at` no la reemplaza (ningún proceso la escribe). Un despacho que sale de los estados terminales (por ejemplo, un `not_delivered` que se reprograma) vuelve a `closed_at = NULL` y deja de aparecer en el historial.
+
 ## Technical notes
 
 - `tracking_token` es único; se usa en vez del `dispatch_id` para no exponer un identificador secuencial interno al Cliente Final.
@@ -91,3 +94,4 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - Los bultos del despacho (peso y medidas reales) viven en `dispatch_packages`.
 - Los productos esperados y recibidos en una recogida al proveedor viven en `dispatch_pickup_items`; el despacho conserva solo las estimaciones generales de carga.
 - `estimated_boxes`, `estimated_volume_m3`, `transport_conditions` y `destination_warehouse_id` fueron añadidos por la migración 015 para modelar recogidas al proveedor sin modificar la orden de compra de origen.
+- `closed_at` fue añadida por la migración `020_..._add_dispatches_closed_at` (ST-55.2). `trg_dispatches_set_closed_at` (función `fn_dispatches_set_closed_at()`, `BEFORE UPDATE OF dispatch_status_id`) es un respaldo: al pasar a un estado terminal sin que el escritor informe `closed_at` lo llena con `NOW()`, y al salir de los terminales lo pone en `NULL`. `idx_dispatches_closed_at` es un índice parcial (`closed_at DESC WHERE closed_at IS NOT NULL`) para el historial.
