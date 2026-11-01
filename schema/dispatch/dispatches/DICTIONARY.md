@@ -29,6 +29,7 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 | estimated_volume_m3 | NUMERIC(10,3) | YES | — | Volumen estimado de la carga en metros cúbicos |
 | transport_conditions | TEXT | YES | — | Condiciones especiales de transporte recibidas de Compras |
 | return_reason | TEXT | YES | — | Motivo de la devolución o garantía (solo aplica si el tipo de despacho es un recojo de devolución o una devolución a proveedor) |
+| preferred_pickup_date | TIMESTAMPTZ | YES | — | Fecha de recojo preferida, informada por Almacén al aprobar una devolución (RMA); distinta de `scheduled_window_start/end`, que define el planificador al armar la ruta |
 | scheduled_window_start | TIMESTAMPTZ | YES | — | Inicio de la ventana horaria prometida; el cliente puede pedir su cambio dentro de la ventana permitida (RF-U21) |
 | scheduled_window_end | TIMESTAMPTZ | YES | — | Fin de la ventana horaria prometida (mismo RF-U21 que arriba) |
 | package_ready_at | TIMESTAMPTZ | YES | — | Momento en que el origen confirmó que el paquete/carga está físicamente listo para ser recogido — llega como un segundo aviso, después de que el despacho ya fue creado con el preaviso |
@@ -95,3 +96,4 @@ La entidad central del microservicio. Representa cualquier operación de transpo
 - Los productos esperados y recibidos en una recogida al proveedor viven en `dispatch_pickup_items`; el despacho conserva solo las estimaciones generales de carga.
 - `estimated_boxes`, `estimated_volume_m3`, `transport_conditions` y `destination_warehouse_id` fueron añadidos por la migración 015 para modelar recogidas al proveedor sin modificar la orden de compra de origen.
 - `closed_at` fue añadida por la migración `020_..._add_dispatches_closed_at` (ST-55.2). `trg_dispatches_set_closed_at` (función `fn_dispatches_set_closed_at()`, `BEFORE UPDATE OF dispatch_status_id`) es un respaldo: al pasar a un estado terminal sin que el escritor informe `closed_at` lo llena con `NOW()`, y al salir de los terminales lo pone en `NULL`. `idx_dispatches_closed_at` es un índice parcial (`closed_at DESC WHERE closed_at IS NOT NULL`) para el historial.
+- `preferred_pickup_date` fue añadida por la migración `021_..._model_rma_pickup_order` (ST-238.1). `uq_dispatches_warehouse_return_pickup_source_order_ref` (mismo patrón que `uq_dispatches_delivery_source_order_ref`) impide dos recojos de devolución con el mismo `rmaId` en `source_order_ref`. El estado de sincronización por `rmaId` (versión recibida) vive aparte, en `rma_sync_states`.
