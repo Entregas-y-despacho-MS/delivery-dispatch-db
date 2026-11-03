@@ -22,6 +22,7 @@ CREATE TABLE dispatches (
     estimated_volume_m3        NUMERIC(10,3)  ,                          -- volumen estimado de la carga en metros cúbicos
     transport_conditions       TEXT           ,                          -- condiciones de transporte recibidas de Compras
     return_reason              TEXT           ,                          -- motivo de la devolución/garantía o del rechazo al proveedor (solo aplica a warehouse_return_pickup / supplier_return)
+    preferred_pickup_date      TIMESTAMPTZ    ,                          -- fecha de recojo preferida informada por Almacén (recojo de devolución RMA); distinta de la ventana que define el planificador
     scheduled_window_start     TIMESTAMPTZ    ,                          -- inicio de la ventana horaria prometida
     scheduled_window_end       TIMESTAMPTZ    ,                          -- fin de la ventana horaria prometida
     package_ready_at           TIMESTAMPTZ    ,                          -- momento en que el origen confirmó que el paquete/carga está físicamente listo para ser recogido (segundo aviso, escenario 1)
@@ -71,6 +72,14 @@ BEGIN
     IF delivery_type_id IS NULL THEN RAISE EXCEPTION 'dispatch type delivery is missing'; END IF;
     EXECUTE format('CREATE UNIQUE INDEX IF NOT EXISTS uq_dispatches_delivery_source_order_ref '
         || 'ON dispatches(source_order_ref) WHERE dispatch_type_id = %s', delivery_type_id);
+END $$;
+DO $$
+DECLARE return_pickup_type_id INT;
+BEGIN
+    SELECT dispatch_type_id INTO return_pickup_type_id FROM dispatch_types WHERE name = 'warehouse_return_pickup';
+    IF return_pickup_type_id IS NULL THEN RAISE EXCEPTION 'dispatch type warehouse_return_pickup is missing'; END IF;
+    EXECUTE format('CREATE UNIQUE INDEX IF NOT EXISTS uq_dispatches_warehouse_return_pickup_source_order_ref '
+        || 'ON dispatches(source_order_ref) WHERE dispatch_type_id = %s', return_pickup_type_id);
 END $$;
 CREATE INDEX idx_dispatches_origin_warehouse_id ON dispatches(origin_warehouse_id);
 CREATE INDEX idx_dispatches_destination_warehouse_id ON dispatches(destination_warehouse_id);
