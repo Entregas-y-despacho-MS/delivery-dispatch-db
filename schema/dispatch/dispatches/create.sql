@@ -42,6 +42,9 @@ CREATE TABLE dispatches (
     promise_firmed_at          TIMESTAMPTZ    ,                          -- momento en que la promesa quedó firme (dispara dispatch.shipment.prepare_requested)
     origin_warehouse_id        INT            ,                          -- almacén de origen de la carga
     destination_warehouse_id   INT            ,                          -- almacén donde se recibirán los productos recogidos al proveedor
+    received_boxes             INT            ,                          -- total de cajas declaradas por el transportista al confirmar una recogida (proveedor o RMA)
+    custody_received_at        TIMESTAMPTZ    ,                          -- momento en que el transportista confirma la recogida y toma custodia de la mercadería
+    arrived_at_warehouse_at    TIMESTAMPTZ    ,                          -- momento en que el transportista marca "Llegué al almacén" (no cambia el estado por sí solo)
     closed_at                  TIMESTAMPTZ    ,                          -- momento en que el despacho llegó a un estado terminal (hora del evento); NULL mientras no lo sea
     created_at                TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     updated_at                 TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
@@ -56,7 +59,8 @@ CREATE TABLE dispatches (
     CONSTRAINT chk_dispatches_priority CHECK (priority IN ('urgent', 'normal')),
     CONSTRAINT uq_dispatches_tracking_code UNIQUE (tracking_code),
     CONSTRAINT chk_dispatches_evidence_policy CHECK (evidence_policy IN ('hand_delivery_standard', 'contactless_delivery', 'high_value_control')),
-    CONSTRAINT chk_dispatches_customer_confirmation CHECK (customer_confirmation IN ('pending', 'confirmed', 'rescheduled', 'change_requested'))
+    CONSTRAINT chk_dispatches_customer_confirmation CHECK (customer_confirmation IN ('pending', 'confirmed', 'rescheduled', 'change_requested')),
+    CONSTRAINT chk_dispatches_received_boxes CHECK (received_boxes IS NULL OR received_boxes >= 0)
 );
 
 CREATE INDEX idx_dispatches_status_id      ON dispatches(dispatch_status_id);
