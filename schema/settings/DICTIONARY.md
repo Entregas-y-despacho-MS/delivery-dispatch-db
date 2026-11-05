@@ -29,7 +29,7 @@ Claves sembradas por `data.sql` antes de los parámetros operativos de ST-57.2.
 | `delivery_window_start` | `08:00` | Inicio de la ventana general de entregas (límite exterior) |
 | `delivery_window_end` | `20:00` | Fin de la ventana general de entregas (límite exterior) |
 | `max_wait_time_min` | `15` | Tiempo máximo de espera en el punto de entrega, en minutos |
-| `sla_alert_threshold_pct` | `90` | Porcentaje mínimo de cumplimiento de SLA antes de disparar una alerta |
+| `sla_alert_threshold_pct` | `90` | Porcentaje mínimo de cumplimiento de SLA antes de disparar una alerta. Clave heredada: el evaluador de alertas usa `sla_alert_min_on_time_pct` (ST-67.1). |
 | `password_min_length` | `8` | Longitud mínima de la contraseña |
 | `password_expiration_days` | `90` | Días antes de exigir el cambio de contraseña |
 | `otp_code_length` | `6` | Cantidad de dígitos del código OTP de confirmación de entrega |
@@ -71,6 +71,9 @@ Claves sembradas por `data.sql` antes de los parámetros operativos de ST-57.2.
 | `warehouse_prep_end_time` | `08:15` | Example warehouse preparation end time; confirm against the shift. |
 | `warehouse_prep_lead_minutes` | Empty | Unconfigured until the preparation lead time is defined. |
 | `reschedule_code_expiry_minutes` | Empty | Unconfigured until the rescheduling code policy is defined. |
+| `sla_alert_min_on_time_pct` | `90` | Minimum on-time delivery percentage (0–100) before an SLA alert is raised (ST-67.1, RF-A20). Edited with `PUT /settings/alert-thresholds`. |
+| `gps_stale_alert_minutes` | `5` | Minutes without a GPS position before a stale-GPS alert is raised (ST-67.1, RF-A20). |
+| `driver_incident_alert_per_day` | `3` | Incidents by one driver in a day that raise a driver-incidents alert (ST-67.1, RF-A20). |
 
 `settings_version` is an internal counter initialized to `0`. The backend increments it after each successful operational setting update and does not expose it through `GET /settings`.
 

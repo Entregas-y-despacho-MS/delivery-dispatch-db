@@ -39,5 +39,8 @@ INSERT INTO settings (setting_key, setting_value, description) VALUES
     ('warehouse_prep_end_time', '08:15', 'Example local end time for warehouse preparation; confirm against the warehouse shift.'),
     ('warehouse_prep_lead_minutes', '', 'Not configured. Set after the warehouse preparation lead time is defined.'),
     ('reschedule_code_expiry_minutes', '', 'Not configured. Set after the rescheduling code policy is defined.'),
+    ('sla_alert_min_on_time_pct', '90', 'Minimum percentage of on-time deliveries before a sla_below_threshold alert is raised.'),
+    ('gps_stale_alert_minutes', '5', 'Minutes without a GPS position from a driver on route before a gps_stale alert is raised.'),
+    ('driver_incident_alert_per_day', '3', 'Number of incidents reported by one driver in a day that raises a driver_incidents alert.'),
     ('settings_version', '0', 'Internal monotonically increasing version for operational settings.')
 ON CONFLICT (setting_key) DO NOTHING;
