@@ -4,7 +4,40 @@ import * as path from "path";
 const ROOT_DIR = process.cwd();
 const OUTPUT_FILE = "db-output.sql";
 const ROOT_INIT = "init.sql";
+const MIGRATIONS_DIR = "migrations";
 const visited = new Set<string>();
+
+// schema/ already reflects every migration (the project's own convention — see the matching
+// schema/ edit rule in .claude/CLAUDE.md), so db-output.sql builds the up-to-date shape directly
+// from schema/, never by replaying migrations/. But scripts/migrate.ts decides what is "pending"
+// from the `migrations` tracking table, which a fresh load of db-output.sql never populates — so
+// the very first `npm run migrate` after bootstrapping from db-output.sql would try to re-apply
+// every migration against a schema that already has them, and fail. Recording them as already
+// applied here keeps the two mechanisms in sync.
+function migrationTrackingSql(): string[] {
+  if (!fs.existsSync(MIGRATIONS_DIR)) return [];
+  const names = fs
+    .readdirSync(MIGRATIONS_DIR)
+    .filter((name) => fs.statSync(path.join(MIGRATIONS_DIR, name)).isDirectory())
+    .sort();
+  if (names.length === 0) return [];
+
+  const values = names.map((name) => `    ('${name}')`).join(",\n");
+  return [
+    "",
+    "-- [migrations tracking] -----------------------------------",
+    "-- Every migration folder above is already reflected in schema/ (see build.ts); mark them as",
+    "-- applied so the first `npm run migrate` after this load does not try to redo them.",
+    "CREATE TABLE IF NOT EXISTS migrations (",
+    "    migration   VARCHAR(255) PRIMARY KEY,",
+    "    applied_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()",
+    ");",
+    "INSERT INTO migrations (migration) VALUES",
+    `${values}`,
+    "ON CONFLICT (migration) DO NOTHING;",
+    "-- [/migrations tracking]\n",
+  ];
+}
 
 function readLines(filePath: string): string[] {
   if (!fs.existsSync(filePath)) {
@@ -58,5 +91,5 @@ const header = [
 
 if (fs.existsSync(OUTPUT_FILE)) fs.unlinkSync(OUTPUT_FILE);
 const lines = processInit(ROOT_INIT);
-fs.writeFileSync(OUTPUT_FILE, [...header, ...lines].join("\n") + "\n", "utf-8");
+fs.writeFileSync(OUTPUT_FILE, [...header, ...lines, ...migrationTrackingSql()].join("\n") + "\n", "utf-8");
 console.log(`Generated: ${OUTPUT_FILE}`);
