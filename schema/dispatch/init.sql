@@ -9,6 +9,8 @@
 \i schema/dispatch/dispatches/init.sql
 \i schema/dispatch/dispatch_pickup_items/init.sql
 \i schema/dispatch/dispatch_packages/init.sql
+\i schema/dispatch/warehouse_receipts/init.sql
+\i schema/dispatch/warehouse_receipt_items/init.sql
 \i schema/dispatch/dispatch_reservations/init.sql
 \i schema/dispatch/delivery_evidences/init.sql
 \i schema/dispatch/dispatch_incidents/init.sql
