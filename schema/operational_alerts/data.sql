@@ -1,0 +1,1 @@
+-- No initial data: alerts are raised by the backend's scheduled evaluator and incident listener (ST-66.2).

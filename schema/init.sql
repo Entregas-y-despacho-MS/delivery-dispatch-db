@@ -19,3 +19,5 @@
 -- messaging/pending_* references dispatches after consolidation
 \i schema/messaging/init.sql
 \i schema/audit/init.sql
+-- operational_alerts: standalone, references auth (users), fleet (vehicles), catalog (zones) and dispatch (dispatches)
+\i schema/operational_alerts/init.sql
