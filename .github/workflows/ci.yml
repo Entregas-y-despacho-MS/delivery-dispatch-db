@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, test, main]
+
+jobs:
+  build-and-load:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: delivery_dispatch_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d delivery_dispatch_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # Catches template/ordering errors in the schema (missing dependency between migrations,
+      # broken SQL, etc.) — there's no dedicated test suite in this repo, this build+load is it.
+      - run: npm run build
+
+      - name: Load db-output.sql into a real Postgres
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d delivery_dispatch_ci -v ON_ERROR_STOP=1 -f db-output.sql
