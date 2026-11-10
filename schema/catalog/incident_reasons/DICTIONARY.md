@@ -11,6 +11,7 @@ Catálogo de motivos de incidencia durante una entrega (ej. cliente ausente, dir
 | name | VARCHAR(150) | NO | — | Descripción del motivo de incidencia |
 | requires_evidence | BOOLEAN | NO | FALSE | Si registrar una incidencia con este motivo exige foto de evidencia |
 | counts_as_attempt | BOOLEAN | NO | FALSE | Si registrar una incidencia con este motivo **consume un intento de entrega** del pedido (se compara con `settings.max_delivery_attempts`) |
+| criticality | VARCHAR(10) | NO | low | Criticidad de la razón (`low` o `high`); solo las razones `high` levantan alertas críticas operativas (ES-66) |
 | active | BOOLEAN | NO | TRUE | Asignable a incidencias nuevas. Desactivarlo no afecta a las incidencias ya registradas con este motivo |
 | deleted_at | TIMESTAMPTZ | YES | — | Soft delete |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
@@ -22,6 +23,7 @@ Catálogo de motivos de incidencia durante una entrega (ej. cliente ausente, dir
 - No hay borrado: la salida para retirar un motivo de uso es desactivarlo (`active = false`), que solo impide asignarlo a incidencias nuevas — las ya registradas con ese motivo no se ven afectadas. No se borra en duro por el historial de incidencias que lo referencian.
 - **Evidencia fotográfica.** Los motivos operativos de entrega `INC-CUST-ABSENT`, `INC-ADDR-INVALID`, `INC-PROD-DAMAGED` e `INC-CUST-REJECTED` exigen evidencia (`requires_evidence = TRUE`). `INC-COMP-FAILURE` no exige foto porque el conductor puede no estar en condiciones de capturarla.
 - **Intentos de entrega (D-48).** `INC-CUST-ABSENT`, `INC-ADDR-INVALID` e `INC-CUST-REJECTED` cuentan como intento (`counts_as_attempt = TRUE`); `INC-PROD-DAMAGED` e `INC-COMP-FAILURE` no. Un motivo nuevo nace en `FALSE`: quien lo crea debe decidirlo.
+- **Alertas críticas (ES-66).** Solo motivos con `criticality = 'high'` levantan una alerta crítica. La migración 027 marca daño de producto, falla de empresa/vehículo y diferencia de recepción como alta; las otras razones existentes quedan `low`. Una razón nueva nace `low` y se puede clasificar desde el catálogo.
 - `INC-ADDR-INVALID` puede ser causa nuestra si el punto de entrega lo fijó el coordinador desde `address_review`; aun así cuenta como intento por regla del plan.
 - `INC-COMP-FAILURE` (falla de la empresa o del vehículo) no consume intento del cliente y no exige foto (`requires_evidence = FALSE`: tras una avería el conductor puede no poder tomarla). Se trata como caso 5.2: alerta al coordinador y promesa original conservada.
 
