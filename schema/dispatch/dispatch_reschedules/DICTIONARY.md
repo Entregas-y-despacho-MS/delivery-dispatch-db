@@ -9,7 +9,8 @@ Historial de reprogramaciones y reasignaciones de un despacho: cada vez que camb
 | dispatch_reschedule_id | SERIAL | NO | auto | Identificador del registro |
 | dispatch_id | INT | NO | — | Despacho reprogramado o reasignado |
 | reschedule_reason_id | INT | NO | — | Motivo de la reprogramación o reasignación |
-| rescheduled_by | INT | YES | — | Usuario que ejecutó el cambio; NULL si fue automático/del sistema |
+| rescheduled_by | INT | YES | — | Usuario que ejecutó el cambio; NULL si fue automático/del sistema o por autoservicio del cliente |
+| rescheduled_by_type | VARCHAR(20) | NO | — | Quién originó el cambio: `customer` (autoservicio), `coordinator` o `system`. Sin default: quien inserta debe indicarlo |
 | previous_route_batch_id | INT | YES | — | Ruta que tenía el despacho antes de este cambio; NULL si no cambió de ruta o no tenía ninguna asignada |
 | new_route_batch_id | INT | YES | — | Ruta nueva; NULL si el cambio no movió al despacho de ruta |
 | previous_window_start | TIMESTAMPTZ | YES | — | Inicio de la ventana horaria anterior |
@@ -36,10 +37,12 @@ Historial de reprogramaciones y reasignaciones de un despacho: cada vez que camb
   - Un mismo evento puede cambiar las dos cosas a la vez.
 - Cada cambio también actualiza el valor vigente correspondiente en `dispatches` (`scheduled_window_start/end` y/o `route_batch_id`) — esta tabla es el historial, `dispatches` siempre refleja lo actual.
 - `previous_window_start/end` y `previous_route_batch_id` pueden venir NULL si el despacho todavía no tenía ventana u ruta asignada antes de este cambio.
+- `rescheduled_by_type` distingue la reprogramación por autoservicio del cliente (`customer`, con `rescheduled_by` NULL y el motivo `RES-CLI-SELF`) de la que decide un coordinador (`coordinator`) y de la automática (`system`). Solo la del coordinador lleva el pedido al estado `rescheduled`; la del cliente lo deja en `scheduled`.
 
 ## Technical notes
 
-- `dispatch_id` usa `ON DELETE CASCADE`: el historial no tiene sentido si se elimina el despacho.
+- `dispatch_id` usa `ON DELETE CASCADE`: el historial no tiene sentido si se elimina el despacho. En la práctica un despacho con eventos no se borra (`dispatch_events` es `RESTRICT`): se anula (`cancelled`).
 - `previous_route_batch_id`/`new_route_batch_id` usan `ON DELETE SET NULL`: si esa ruta se elimina más adelante, el registro histórico se conserva, solo pierde la referencia.
 - `chk_dispatch_reschedules_has_change` impide una fila que no cambie ni ventana ni ruta (evita registros vacíos sin sentido).
-- Tabla append-only: un registro ya escrito no se modifica, por eso no tiene `updated_at`.
+- Tabla append-only: un registro ya escrito no se modifica, por eso no tiene `updated_at`. Es solo convención: a diferencia de `dispatch_events` y `route_batch_events`, ningún trigger lo impone.
+- `chk_dispatch_reschedules_rescheduled_by_type` restringe `rescheduled_by_type` a sus 3 valores. Agregada por la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3): las filas previas con `rescheduled_by` NULL quedaron como `system`, y las que tenían usuario como `coordinator` (decisión propia: el plan solo fijaba el caso NULL; quienes reprograman son coordinadores o supervisores).

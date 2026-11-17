@@ -10,6 +10,7 @@ Catálogo de zonas geográficas de reparto, con su tiempo estimado de entrega.
 | code | VARCHAR(20) | NO | — | Código único que identifica la zona (ej. `ZON-SUR`) |
 | name | VARCHAR(100) | NO | — | Nombre de la zona de reparto |
 | estimated_time_min | INT | NO | — | Tiempo estimado de entrega para esa zona, en minutos |
+| boundary | POLYGON | YES | — | Límite geográfico de la zona como polígono nativo de PostgreSQL con puntos `(longitud, latitud)`; permite asignar la zona a un destino por punto dentro de polígono (`boundary @> point`). NULL si aún no se dibujó |
 | deleted_at | TIMESTAMPTZ | YES | — | Soft delete |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
@@ -22,3 +23,4 @@ Catálogo de zonas geográficas de reparto, con su tiempo estimado de entrega.
 ## Technical notes
 
 - `code` y `name` son únicos solo entre zonas no borradas (`WHERE deleted_at IS NULL`) — permite reusarlos tras un soft delete.
+- `idx_delivery_zones_boundary` es un índice GiST parcial sobre `boundary` (tipos nativos, sin PostGIS).

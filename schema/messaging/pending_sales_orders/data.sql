@@ -1,0 +1,1 @@
+-- No initial data: pending sales-order records are written by the async consumers.

@@ -1,5 +1,8 @@
 node_modules/
 db-output.sql
-.env
+# Any .env variant except the tracked templates — .env.prod would have real secrets, not just the literal .env
+.env*
+!.env.example
+!.env.prod.example
 backups/*.sql
 .claude/

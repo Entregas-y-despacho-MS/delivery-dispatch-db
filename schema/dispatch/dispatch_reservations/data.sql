@@ -1,0 +1,1 @@
+-- Sin datos iniciales: las reservas se crean durante la operación normal.

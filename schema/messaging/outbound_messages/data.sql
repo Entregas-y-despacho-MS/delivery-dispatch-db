@@ -1,0 +1,1 @@
+-- No initial data: outgoing messages are created by application transactions.

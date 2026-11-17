@@ -1,0 +1,1 @@
+-- No initial data: items arrive with inventory.receipt.confirmed messages.

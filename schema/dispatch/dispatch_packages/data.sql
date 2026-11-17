@@ -1,0 +1,1 @@
+-- Sin datos iniciales: los bultos llegan de Almacén junto con cada pedido empacado.

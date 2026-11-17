@@ -21,6 +21,7 @@ Catálogo de motivos por los que se reprograma o reasigna un despacho.
 - El coordinador administra este catálogo (RF-A33), distinto del catálogo de motivos de incidencia: este es sobre decisiones de reprogramación/reasignación (RF-A05, RF-A16), no sobre problemas ocurridos durante la entrega.
 - Un motivo categorizado como `client` marca, cuando se usa para reprogramar un despacho, que el retraso no penaliza la métrica de puntualidad interna del equipo de logística — ese cómputo se hace al registrar la reprogramación (`dispatch_reschedules`), no en este catálogo.
 - No hay borrado: la salida para retirar un motivo de uso es desactivarlo (`active = false`), que solo impide asignarlo a reprogramaciones nuevas — las ya registradas con ese motivo no se ven afectadas.
+- **Motivo sembrado:** `RES-CLI-SELF` («Customer self-service reschedule», categoría `client`) es el que usa el sistema cuando el cliente reprograma por su cuenta desde el enlace de seguimiento (`dispatch_reschedules.rescheduled_by_type = 'customer'`). Existe porque `reschedule_reason_id` es `NOT NULL` y ningún usuario ejecuta ese cambio. No debe desactivarse ni borrarse mientras exista el autoservicio.
 
 ## Technical notes
 
@@ -28,3 +29,4 @@ Catálogo de motivos por los que se reprograma o reasigna un despacho.
 - `category` restringido por `chk_reschedule_reasons_category` a exactamente `client`, `operations` o `force_majeure` (minúsculas, sin tilde — mismo criterio que el resto de los enums del proyecto, ej. `RoleEnum`).
 - `description`, `category` y `active` se agregaron con la migración `005_..._add_description_category_and_active_to_reschedule_reasons` (RF-A33). No había filas sembradas que migrar.
 - `code` se agregó con la migración `006_..._add_code_to_reschedule_reasons` — un ajuste sobre la 005, que lo había dejado afuera pese a que el propio Escenario 3 de la historia ya lo pedía ("nombre o código").
+- El catálogo ya no está vacío de fábrica: `RES-CLI-SELF` lo siembra la migración `013_..._extend_dispatch_model_for_semiautomatic_planning` (ST-49.3) y `data.sql`. El plan v3 pedía el motivo pero no su código ni su nombre; ambos son decisión propia de ST-49.3 (código según la convención `RES-<ORIGEN>-<DETALLE>` de la tabla; nombre en inglés, como el resto de los datos semilla).

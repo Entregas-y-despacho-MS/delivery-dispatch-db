@@ -3,6 +3,8 @@ CREATE TABLE incident_reasons (
     code                 VARCHAR(30)     NOT NULL,                        -- unique reference code (ej. INC-CLI-AUS)
     name                 VARCHAR(150)    NOT NULL,                        -- motivo de incidencia de entrega
     requires_evidence    BOOLEAN         NOT NULL DEFAULT FALSE,          -- exige foto al registrar la incidencia
+    counts_as_attempt    BOOLEAN         NOT NULL DEFAULT FALSE,          -- consume un intento de entrega del pedido (max_delivery_attempts)
+    criticality          VARCHAR(10)     NOT NULL DEFAULT 'low' CHECK (criticality IN ('low', 'high')),
     active               BOOLEAN         NOT NULL DEFAULT TRUE,           -- asignable a incidencias nuevas / desactivado
     deleted_at           TIMESTAMPTZ,                                     -- soft delete
     created_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW(),

@@ -1,26 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Client } from "pg";
+import { loadDbEnv } from "./load-db-env.js";
 
 const ROOT_DIR = process.cwd();
 const MIGRATIONS_DIR = path.join(ROOT_DIR, "migrations");
-
-function loadEnv(): Record<string, string> {
-  const envPath = path.join(ROOT_DIR, ".env");
-  if (!fs.existsSync(envPath)) {
-    console.error(".env not found. Copy .env.example and fill in your credentials.");
-    process.exit(1);
-  }
-  const env: Record<string, string> = {};
-  for (const line of fs.readFileSync(envPath, "utf-8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    env[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
-  }
-  return env;
-}
 
 async function ensureMigrationsTable(client: Client): Promise<void> {
   await client.query(`
@@ -54,7 +38,7 @@ function pendingMigrations(applied: Set<string>): string[] {
 }
 
 async function main(): Promise<void> {
-  const env = loadEnv();
+  const env = loadDbEnv();
   const client = new Client({
     host: env.DB_HOST ?? "localhost",
     port: Number(env.DB_PORT ?? 5432),
