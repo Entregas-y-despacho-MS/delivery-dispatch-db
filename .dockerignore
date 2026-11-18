@@ -1,10 +1,9 @@
 node_modules/
 backups/*.sql
-# Any .env variant except the tracked templates — .env.prod would have real secrets, and this
+# Any .env variant except the tracked template — .env.prod would have real secrets, and this
 # repo's Dockerfile does `COPY . .` into the build stage, so an unignored one would enter the
 # build context and the image's build cache.
 .env*
 !.env.example
-!.env.prod.example
 .git/
 *.md
