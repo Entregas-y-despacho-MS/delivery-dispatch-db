@@ -1,0 +1,1 @@
+-- Sin datos iniciales: se generan automáticamente por la aplicación.
