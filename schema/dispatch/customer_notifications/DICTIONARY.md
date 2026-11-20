@@ -20,7 +20,7 @@ Aviso por correo al cliente y su estado de envío (RF-U16, ST-39.2). Una fila es
 | attempts | SMALLINT | NO | `0` | Intentos de envío realizados contra el proveedor |
 | next_attempt_at | TIMESTAMPTZ | YES | — | Cuándo toca el próximo intento; NULL en los estados finales |
 | locked_until | TIMESTAMPTZ | YES | — | Concesión del intento en curso; vencida, otro proceso puede retomarlo |
-| last_error | VARCHAR(200) | YES | — | Último error saneado: solo clase o código |
+| last_error | VARCHAR(200) | YES | — | Último error del proveedor, saneado: una línea de a lo sumo 200 caracteres, sin direcciones, enlaces ni tokens largos |
 | sent_at | TIMESTAMPTZ | YES | — | Momento en que el proveedor aceptó el correo |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
@@ -37,7 +37,8 @@ Aviso por correo al cliente y su estado de envío (RF-U16, ST-39.2). Una fila es
 - **Estados**: `sending` (intento en curso o por retomar), `sent` (el proveedor aceptó el correo), `retrying` (falló de forma transitoria; toca otro intento en `next_attempt_at`), `bounced` (el proveedor rechazó al destinatario: permanente, no se reintenta) y `exhausted` (se agotaron los intentos). `sent`, `bounced` y `exhausted` son finales.
 - `sent_at` está presente si y solo si `status = 'sent'`.
 - Un proveedor caído no revierte la transición del despacho: el aviso se registra aparte y se recupera.
-- `last_error` nunca guarda la dirección, el token de seguimiento ni el texto devuelto por el proveedor.
+- `last_error` guarda el texto del error del proveedor, pero sin la dirección del cliente, sin enlaces (el de seguimiento lleva el token) y sin cadenas largas tipo token o clave: el backend las reemplaza por `[email]`, `[url]` y `[redacted]` antes de escribir. Lo que no encaja en esos patrones se guarda tal cual.
+- Una fila `sending` cuya concesión (`locked_until`) venció la retoma la tarea de recuperación, y ese intento se cuenta en `attempts` (el proceso que murió lo intentó): así una fila que mata su proceso cada vez termina en `exhausted`.
 
 ## Technical notes
 
