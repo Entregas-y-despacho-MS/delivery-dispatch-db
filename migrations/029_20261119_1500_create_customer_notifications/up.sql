@@ -1,0 +1,46 @@
+-- ST-39.2 (ES-39, RF-U16): customer email with its delivery state — idempotent per source event and
+-- notification type, recoverable after a provider failure.
+
+CREATE TABLE IF NOT EXISTS customer_notifications (
+    customer_notification_id  SERIAL,
+    dispatch_id               INT             NOT NULL,                        -- despacho cuyo cambio de estado originó el aviso
+    notification_type         VARCHAR(50)     NOT NULL,                        -- status_change (cambio de estado del despacho)
+    idempotency_key           VARCHAR(200)    NOT NULL,                        -- <notification_type>:<source_event_key>; única: un solo envío lógico por evento y tipo
+    source_event_key          VARCHAR(120)    NOT NULL,                        -- evento origen: <dispatch_id>:<estado>:<instante ISO>; el evento no trae id propio
+    dispatch_status           VARCHAR(30)     NOT NULL,                        -- estado del despacho que se avisa (para reconstruir el correo en un reintento)
+    occurred_at               TIMESTAMPTZ     NOT NULL,                        -- instante de la transición que originó el aviso
+    recipient                 VARCHAR(254)    NOT NULL,                        -- correo del destinatario normalizado (sin espacios, en minúsculas)
+    template                  VARCHAR(50)     NOT NULL,                        -- plantilla Handlebars usada (ej. status-change)
+    template_version          SMALLINT        NOT NULL,                        -- versión de la plantilla al momento del envío
+    status                    VARCHAR(20)     NOT NULL DEFAULT 'sending',      -- sending | sent | retrying | bounced | exhausted
+    attempts                  SMALLINT        NOT NULL DEFAULT 0,              -- intentos de envío realizados contra el proveedor
+    next_attempt_at           TIMESTAMPTZ,                                     -- cuándo toca el próximo intento; NULL en los estados finales
+    locked_until              TIMESTAMPTZ,                                     -- concesión del intento en curso; vencida, otro proceso puede retomarlo
+    last_error                VARCHAR(200),                                    -- último error saneado (solo clase o código; nunca dirección, token ni texto del proveedor)
+    sent_at                   TIMESTAMPTZ,                                     -- momento en que el proveedor aceptó el correo; NULL mientras no se envíe
+    created_at                TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at                TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (customer_notification_id),
+    FOREIGN KEY (dispatch_id) REFERENCES dispatches(dispatch_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_customer_notifications_type CHECK (notification_type IN ('status_change')),
+    CONSTRAINT chk_customer_notifications_status CHECK (status IN ('sending', 'sent', 'retrying', 'bounced', 'exhausted')),
+    CONSTRAINT chk_customer_notifications_attempts CHECK (attempts >= 0),
+    CONSTRAINT chk_customer_notifications_sent_at CHECK ((status = 'sent') = (sent_at IS NOT NULL))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_notifications_idempotency_key ON customer_notifications(idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_customer_notifications_dispatch_id ON customer_notifications(dispatch_id);
+CREATE INDEX IF NOT EXISTS idx_customer_notifications_pending ON customer_notifications(next_attempt_at) WHERE status IN ('sending', 'retrying');
+
+CREATE OR REPLACE FUNCTION fn_customer_notifications_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at := NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_customer_notifications_set_updated_at ON customer_notifications;
+CREATE TRIGGER trg_customer_notifications_set_updated_at
+    BEFORE UPDATE ON customer_notifications
+    FOR EACH ROW EXECUTE FUNCTION fn_customer_notifications_set_updated_at();
