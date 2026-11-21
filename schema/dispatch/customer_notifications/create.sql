@@ -17,7 +17,7 @@ CREATE TABLE customer_notifications (
     attempts                  SMALLINT        NOT NULL DEFAULT 0,              -- intentos de envío realizados contra el proveedor
     next_attempt_at           TIMESTAMPTZ,                                     -- cuándo toca el próximo intento; NULL en los estados finales
     locked_until              TIMESTAMPTZ,                                     -- concesión del intento en curso; vencida, otro proceso puede retomarlo
-    last_error                VARCHAR(200),                                    -- último error del proveedor, saneado: una línea de a lo sumo 200 caracteres, sin direcciones, enlaces ni tokens largos
+    last_error                VARCHAR(200),                                    -- último error del proveedor, saneado: una línea de a lo sumo 200 caracteres, sin direcciones, enlaces ni tokens largos; se conserva tras un envío exitoso posterior
     sent_at                   TIMESTAMPTZ,                                     -- momento en que el proveedor aceptó el correo; NULL mientras no se envíe
     created_at                TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at                TIMESTAMPTZ     NOT NULL DEFAULT NOW(),

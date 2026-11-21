@@ -20,7 +20,7 @@ Aviso por correo al cliente y su estado de envío (RF-U16, ST-39.2). Una fila es
 | attempts | SMALLINT | NO | `0` | Intentos de envío realizados contra el proveedor |
 | next_attempt_at | TIMESTAMPTZ | YES | — | Cuándo toca el próximo intento; NULL en los estados finales |
 | locked_until | TIMESTAMPTZ | YES | — | Concesión del intento en curso; vencida, otro proceso puede retomarlo |
-| last_error | VARCHAR(200) | YES | — | Último error del proveedor, saneado: una línea de a lo sumo 200 caracteres, sin direcciones, enlaces ni tokens largos |
+| last_error | VARCHAR(200) | YES | — | Último error del proveedor, saneado: una línea de a lo sumo 200 caracteres, sin direcciones, enlaces ni tokens largos. Es histórico: se conserva cuando un reintento posterior logra enviar el correo |
 | sent_at | TIMESTAMPTZ | YES | — | Momento en que el proveedor aceptó el correo |
 | created_at | TIMESTAMPTZ | NO | NOW() | Fecha de alta |
 | updated_at | TIMESTAMPTZ | NO | NOW() | Última modificación |
@@ -38,6 +38,8 @@ Aviso por correo al cliente y su estado de envío (RF-U16, ST-39.2). Una fila es
 - `sent_at` está presente si y solo si `status = 'sent'`.
 - Un proveedor caído no revierte la transición del despacho: el aviso se registra aparte y se recupera.
 - `last_error` guarda el texto del error del proveedor, pero sin la dirección del cliente, sin enlaces (el de seguimiento lleva el token) y sin cadenas largas tipo token o clave: el backend las reemplaza por `[email]`, `[url]` y `[redacted]` antes de escribir. Lo que no encaja en esos patrones se guarda tal cual.
+- `last_error` no se limpia al enviar: una fila `sent` con `attempts` mayor que 1 y un `last_error` cuenta por qué hizo falta reintentar. Para ver solo lo que sigue fallando se filtra por `status` (`retrying`, `exhausted`, `bounced`), no por `last_error`.
+- Un despacho con avisos no se puede borrar físicamente (`ON DELETE RESTRICT`). La aplicación no borra despachos; cualquier limpieza de datos (seeds de prueba, suites e2e) debe borrar antes las filas de `customer_notifications` del despacho.
 - Una fila `sending` cuya concesión (`locked_until`) venció la retoma la tarea de recuperación, y ese intento se cuenta en `attempts` (el proceso que murió lo intentó): así una fila que mata su proceso cada vez termina en `exhausted`.
 
 ## Technical notes
