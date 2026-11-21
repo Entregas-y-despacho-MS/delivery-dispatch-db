@@ -1,0 +1,1 @@
+-- No initial data: the rows are written by the backend when a delivery changes status (ST-39.2).
