@@ -1,0 +1,1 @@
+-- No initial data: the rows are written by the backend when it consumes a CRM complaint (ST-298.3).
