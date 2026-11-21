@@ -16,6 +16,7 @@
 \i schema/dispatch/dispatch_incidents/init.sql
 \i schema/dispatch/dispatch_ratings/init.sql
 \i schema/dispatch/dispatch_complaints/init.sql
+\i schema/dispatch/delivery_complaint_cases/init.sql
 \i schema/dispatch/dispatch_events/init.sql
 \i schema/dispatch/customer_notifications/init.sql
 \i schema/dispatch/dispatch_reschedules/init.sql
