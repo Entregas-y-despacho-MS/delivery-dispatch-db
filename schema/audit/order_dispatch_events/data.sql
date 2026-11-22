@@ -1,0 +1,1 @@
+-- Sin datos iniciales: los eventos los genera la aplicación.
