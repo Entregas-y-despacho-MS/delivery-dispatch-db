@@ -55,7 +55,7 @@ CREATE TABLE delivery_complaint_cases (
     CONSTRAINT chk_delivery_complaint_cases_rma_references CHECK (
         (authorization_request_id IS NULL OR char_length(btrim(authorization_request_id)) > 0)
         AND (rma_id IS NULL OR char_length(btrim(rma_id)) > 0)
-        AND (verdict = 'request_RMA' OR (authorization_request_id IS NULL AND rma_id IS NULL))
+        AND (COALESCE(verdict = 'request_RMA', FALSE) OR (authorization_request_id IS NULL AND rma_id IS NULL))
     )
 );
 

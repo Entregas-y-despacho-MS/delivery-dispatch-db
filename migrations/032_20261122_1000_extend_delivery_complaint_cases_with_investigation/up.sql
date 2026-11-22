@@ -17,42 +17,42 @@ ALTER TABLE delivery_complaint_cases
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_delivery_complaint_cases_assigned_user_id') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_delivery_complaint_cases_assigned_user_id' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT fk_delivery_complaint_cases_assigned_user_id
             FOREIGN KEY (assigned_user_id) REFERENCES users(user_id) ON DELETE RESTRICT;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_delivery_complaint_cases_decided_by_user_id') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_delivery_complaint_cases_decided_by_user_id' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT fk_delivery_complaint_cases_decided_by_user_id
             FOREIGN KEY (decided_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_investigation_status') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_investigation_status' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_investigation_status
             CHECK (investigation_status IN ('received', 'assigned', 'in_investigation', 'decided'));
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_verdict') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_verdict' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_verdict
             CHECK (verdict IS NULL OR verdict IN ('no_return_required', 'not_confirmed', 'request_RMA'));
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_findings_length') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_findings_length' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_findings_length
             CHECK (findings IS NULL OR char_length(findings) <= 4000);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_assignment') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_assignment' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_assignment
             CHECK (investigation_status = 'received' OR (assigned_user_id IS NOT NULL AND assigned_at IS NOT NULL));
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_started_at') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_started_at' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_started_at
             CHECK (investigation_status NOT IN ('in_investigation', 'decided') OR investigation_started_at IS NOT NULL);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_decision') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_decision' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_decision
             CHECK (
@@ -63,13 +63,13 @@ BEGIN
                     AND verdict IS NULL AND decided_at IS NULL AND decided_by_user_id IS NULL AND decision_reason IS NULL)
             );
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_rma_references') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_delivery_complaint_cases_rma_references' AND conrelid = 'delivery_complaint_cases'::regclass) THEN
         ALTER TABLE delivery_complaint_cases
             ADD CONSTRAINT chk_delivery_complaint_cases_rma_references
             CHECK (
                 (authorization_request_id IS NULL OR char_length(btrim(authorization_request_id)) > 0)
                 AND (rma_id IS NULL OR char_length(btrim(rma_id)) > 0)
-                AND (verdict = 'request_RMA' OR (authorization_request_id IS NULL AND rma_id IS NULL))
+                AND (COALESCE(verdict = 'request_RMA', FALSE) OR (authorization_request_id IS NULL AND rma_id IS NULL))
             );
     END IF;
 END $$;

@@ -8,7 +8,7 @@ ST-45.1 (ES-45, RF-U22). The complaint case received from the CRM (ST-298.2, mig
 
 **Indexes:** `(investigation_status, consumed_at DESC)` and `(dispatch_id, investigation_status)` for the inbox queries, plus partial indexes on the two user FKs. The `dispatch_id` index from `030` is kept.
 
-**Existing rows:** kept. They get `investigation_status = 'received'` and every other new column NULL, which satisfies all the checks. No backfill.
+**Existing rows:** kept. They get `investigation_status = 'received'` and every other new column NULL, which satisfies all the checks. No backfill. The `DEFAULT 'received'` of `investigation_status` is permanent (it is the legitimate initial state, not a temporary backfill default). The assignment check only requires the assignee when the status is not `received`; it does not forbid keeping one on a `received` case. The verdict value `request_RMA` keeps the casing of the ES-45 story.
 
 **`up.sql`** is idempotent (`ADD COLUMN IF NOT EXISTS`, guarded constraints, `CREATE ... IF NOT EXISTS`).
 
