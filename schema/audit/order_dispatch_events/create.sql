@@ -1,7 +1,7 @@
 -- Tabla de log append-only: no lleva updated_at (un evento ya registrado nunca se modifica). La
--- inmutabilidad la imponen dos triggers (UPDATE siempre bloqueado; DELETE solo con
--- app.allow_event_purge = 'on', para limpieza de pruebas) y el rol dispatch_app, que solo tiene
--- SELECT e INSERT. TRUNCATE no se bloquea: es convención.
+-- inmutabilidad la imponen dos triggers (UPDATE y DELETE siempre bloqueados, sin escape de
+-- limpieza, a diferencia de dispatch_events) y el rol dispatch_app, que solo tiene SELECT e
+-- INSERT. TRUNCATE no se bloquea: es convención.
 CREATE TABLE order_dispatch_events (
     order_dispatch_event_id  UUID            NOT NULL,                        -- eventId generado por la aplicación (inserción idempotente)
     source_order_ref         VARCHAR(100)    NOT NULL,                        -- pedido en el sistema origen (dispatches.source_order_ref). Sin FK: un pedido puede tener varios despachos
@@ -39,9 +39,6 @@ $$ LANGUAGE plpgsql;
 
 CREATE FUNCTION fn_order_dispatch_events_prevent_delete() RETURNS TRIGGER AS $$
 BEGIN
-    IF COALESCE(current_setting('app.allow_event_purge', true), '') = 'on' THEN
-        RETURN OLD;
-    END IF;
     RAISE EXCEPTION 'order_dispatch_events is append-only: DELETE is not allowed';
 END;
 $$ LANGUAGE plpgsql;

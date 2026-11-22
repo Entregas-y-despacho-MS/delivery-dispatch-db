@@ -37,8 +37,11 @@ Historial inmutable de los eventos de negocio de cada pedido y despacho (creaci�
 ## Technical notes
 
 - **Tabla de log append-only**: no tiene `updated_at`.
-- **Inmutabilidad en dos capas**: los triggers `trg_order_dispatch_events_prevent_update` y `trg_order_dispatch_events_prevent_delete` bloquean `UPDATE` siempre y `DELETE` salvo con `app.allow_event_purge = 'on'` (solo limpieza de pruebas, igual que `dispatch_events`); el rol `dispatch_app` (`NOLOGIN`) solo tiene `SELECT` e `INSERT`. `TRUNCATE` no se bloquea: es convención.
+- **Inmutabilidad en dos capas**: los triggers `trg_order_dispatch_events_prevent_update` y `trg_order_dispatch_events_prevent_delete` bloquean `UPDATE` y `DELETE` siempre, sin el escape `app.allow_event_purge` que sí tiene `dispatch_events` (la limpieza de pruebas usa `TRUNCATE`); el rol `dispatch_app` (`NOLOGIN`) solo tiene `SELECT` e `INSERT`. `TRUNCATE` no se bloquea: es convención.
 - El usuario de conexión del backend debe pertenecer a `dispatch_app` o tener los mismos privilegios.
-- Índices de consulta: `(dispatch_id, occurred_at)`, `(source_order_ref, occurred_at)` y `correlation_id`; además los de las FK.
+- `create.sql` y la migración crean el rol `dispatch_app` (es del clúster): quien cargue el schema o corra la migración necesita el privilegio `CREATEROLE`.
+- Índices de consulta: `idx_order_dispatch_events_dispatch_occurred` (`dispatch_id, occurred_at`), `idx_order_dispatch_events_order_occurred` (`source_order_ref, occurred_at`) e `idx_order_dispatch_events_correlation_id`; además los de las FK (`idx_order_dispatch_events_route_batch_id`, `idx_order_dispatch_events_actor_user_id`).
+- Constraints: `chk_order_dispatch_events_result` (`success`, `denied`, `failed`) y `chk_order_dispatch_events_detail` (`detail` es un objeto JSON).
+- Funciones de trigger: `fn_order_dispatch_events_prevent_update` y `fn_order_dispatch_events_prevent_delete`.
 - Distinta de `dispatch_events` (solo despachos, sin correlación ni resultado) y de `admin_audit_events` (acciones administrativas sensibles).
-- Creada por la migración `031_20261121_1200_create_order_dispatch_events` (ST-69.1).
+- Creada por la migración `031_20261121_1200_create_order_dispatch_events` (ST-69.1, historia ES-69).

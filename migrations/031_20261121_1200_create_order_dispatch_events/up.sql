@@ -39,9 +39,6 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION fn_order_dispatch_events_prevent_delete() RETURNS TRIGGER AS $$
 BEGIN
-    IF COALESCE(current_setting('app.allow_event_purge', true), '') = 'on' THEN
-        RETURN OLD;
-    END IF;
     RAISE EXCEPTION 'order_dispatch_events is append-only: DELETE is not allowed';
 END;
 $$ LANGUAGE plpgsql;
@@ -62,6 +59,8 @@ DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dispatch_app') THEN
         CREATE ROLE dispatch_app NOLOGIN;
+        -- Marker so down.sql only drops a role that this migration created.
+        COMMENT ON ROLE dispatch_app IS 'created by migration 031_create_order_dispatch_events';
     END IF;
 END $$;
 
