@@ -1,4 +1,4 @@
--- Revierte up.sql en orden inverso. Se pierde el historial guardado en las cuatro tablas.
+-- Reverts up.sql in reverse order. The history stored in the four tables is lost.
 DROP TRIGGER IF EXISTS trg_route_manifest_stops_prevent_delete ON route_manifest_stops;
 DROP TRIGGER IF EXISTS trg_route_manifest_stops_prevent_update ON route_manifest_stops;
 DROP TRIGGER IF EXISTS trg_route_manifests_prevent_delete ON route_manifests;
@@ -17,7 +17,7 @@ DROP FUNCTION IF EXISTS fn_planning_cutoff_dispatches_prevent_update();
 DROP FUNCTION IF EXISTS fn_planning_cutoffs_prevent_delete();
 DROP FUNCTION IF EXISTS fn_planning_cutoffs_prevent_update();
 
--- Hijas primero; sus índices caen con cada tabla.
+-- Children first; their indexes go with each table.
 DROP TABLE IF EXISTS route_manifest_stops;
 DROP TABLE IF EXISTS route_manifests;
 DROP TABLE IF EXISTS planning_cutoff_dispatches;

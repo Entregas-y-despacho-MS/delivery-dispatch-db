@@ -22,6 +22,7 @@ CREATE TABLE planning_cutoff_dispatches (
     FOREIGN KEY (delivery_zone_id)    REFERENCES delivery_zones(delivery_zone_id)     ON DELETE RESTRICT,
     FOREIGN KEY (origin_warehouse_id) REFERENCES warehouses(warehouse_id)             ON DELETE RESTRICT,
     CONSTRAINT chk_planning_cutoff_dispatches_universe_status CHECK (universe_status IN ('eligible', 'excluded')),
+    CONSTRAINT chk_planning_cutoff_dispatches_route_version   CHECK (route_version >= 0),
     CONSTRAINT chk_planning_cutoff_dispatches_exclusion CHECK (
         (universe_status = 'eligible' AND exclusion_code IS NULL AND exclusion_detail IS NULL)
         OR (universe_status = 'excluded'

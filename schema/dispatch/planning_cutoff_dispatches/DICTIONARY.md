@@ -13,7 +13,7 @@ El universo de un corte de planificación: cada despacho que el corte leyó, mar
 | exclusion_code | VARCHAR(40) | YES | — | Código del motivo (`^[a-z][a-z0-9_]{1,39}$`, p. ej. `cutoff_window_open`, `cutoff_no_promise`); NULL si es elegible |
 | exclusion_detail | TEXT | YES | — | Explicación legible del motivo, tal como se dio en el corte; NULL si es elegible |
 | route_batch_id | INT | NO | — | Lote provisional en que estaba el despacho al leer el corte |
-| route_version | INT | NO | — | `route_batches.version` de ese lote al leer el corte |
+| route_version | INT | NO | — | `route_batches.version` de ese lote al leer el corte (`>= 0`) |
 | dispatch_type_id | INT | NO | — | Tipo del despacho (entrega, recojo...) |
 | delivery_zone_id | INT | YES | — | Zona del lote al leer el corte |
 | origin_warehouse_id | INT | YES | — | Almacén de origen del lote al leer el corte; NULL si el lote no lo tenía |
@@ -45,6 +45,6 @@ El universo de un corte de planificación: cada despacho que el corte leyó, mar
 - **Tabla de historia append-only**: no tiene `updated_at`. Triggers `trg_planning_cutoff_dispatches_prevent_update` / `fn_planning_cutoff_dispatches_prevent_update()` (bloquea todo `UPDATE`) y `trg_planning_cutoff_dispatches_prevent_delete` / `fn_planning_cutoff_dispatches_prevent_delete()` (bloquea `DELETE` salvo `app.allow_event_purge = 'on'`, uso reservado a la limpieza de pruebas).
 - Todas las FK usan `ON DELETE RESTRICT`: un corte, despacho o lote con historia no se borra en silencio. Cualquier limpieza de datos (seeds, e2e) debe borrar antes estas filas, con `app.allow_event_purge = 'on'`.
 - `uq_planning_cutoff_dispatches_cutoff_dispatch` cubre las consultas por corte y despacho; `idx_planning_cutoff_dispatches_cutoff_status` sirve para contar elegibles y excluidos de un corte.
-- **Restricciones e índices**: `chk_planning_cutoff_dispatches_universe_status` (`eligible` o `excluded`) y `chk_planning_cutoff_dispatches_exclusion` (código y explicación presentes solo si es `excluded`, con el formato del código). Un índice por cada FK que no encabeza un compuesto: `idx_planning_cutoff_dispatches_dispatch_id`, `_route_batch_id`, `_dispatch_type_id`, `_delivery_zone_id` y `_origin_warehouse_id`, para filtrar el snapshot por despacho, lote, tipo, zona y almacén.
+- **Restricciones e índices**: `chk_planning_cutoff_dispatches_universe_status` (`eligible` o `excluded`), `chk_planning_cutoff_dispatches_route_version` (`route_version >= 0`, igual que `route_manifests`) y `chk_planning_cutoff_dispatches_exclusion` (código y explicación presentes solo si es `excluded`, con el formato del código). Un índice por cada FK que no encabeza un compuesto: `idx_planning_cutoff_dispatches_dispatch_id`, `_route_batch_id`, `_dispatch_type_id`, `_delivery_zone_id` y `_origin_warehouse_id`, para filtrar el snapshot por despacho, lote, tipo, zona y almacén.
 - **Referencia funcional**: la HU 5.17 (Jira ES-302) no está en `docs/` ni tiene aún un RF; el origen es esa historia.
 - Creada por la migración `033_20261122_1100_create_planning_cutoffs_and_route_manifests` (ST-302.2). El backend debe agregar la entidad correspondiente.
