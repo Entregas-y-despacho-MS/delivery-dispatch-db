@@ -1,0 +1,1 @@
+-- Sin datos iniciales: los genera la aplicación junto con cada manifiesto de ruta.

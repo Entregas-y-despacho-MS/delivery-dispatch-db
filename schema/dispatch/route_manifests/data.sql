@@ -1,0 +1,1 @@
+-- Sin datos iniciales: los genera la aplicación al confirmar, iniciar o revisar una ruta.
