@@ -1,0 +1,1 @@
+-- Sin datos iniciales: los genera la aplicación en cada corrida del corte de D-1.
