@@ -4,12 +4,13 @@ CREATE TABLE incident_reasons (
     name                 VARCHAR(150)    NOT NULL,                        -- motivo de incidencia de entrega
     requires_evidence    BOOLEAN         NOT NULL DEFAULT FALSE,          -- exige foto al registrar la incidencia
     counts_as_attempt    BOOLEAN         NOT NULL DEFAULT FALSE,          -- consume un intento de entrega del pedido (max_delivery_attempts)
-    criticality          VARCHAR(10)     NOT NULL DEFAULT 'low' CHECK (criticality IN ('low', 'high')),
-    active               BOOLEAN         NOT NULL DEFAULT TRUE,           -- asignable a incidencias nuevas / desactivado
+    criticality          VARCHAR(10)     NOT NULL DEFAULT 'low',          -- 'low' | 'high'; solo 'high' levanta alerta crítica (ES-66)
+    active              BOOLEAN         NOT NULL DEFAULT TRUE,           -- asignable a incidencias nuevas / desactivado
     deleted_at           TIMESTAMPTZ,                                     -- soft delete
     created_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (incident_reason_id)
+    PRIMARY KEY (incident_reason_id),
+    CONSTRAINT chk_incident_reasons_criticality CHECK (criticality IN ('low', 'high'))
 );
 
 CREATE UNIQUE INDEX uq_incident_reasons_name ON incident_reasons(name) WHERE deleted_at IS NULL;
